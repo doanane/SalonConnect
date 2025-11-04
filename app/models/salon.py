@@ -1,3 +1,4 @@
+
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Float, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -30,6 +31,7 @@ class Salon(Base):
     services = relationship("Service", back_populates="salon")
     bookings = relationship("Booking", back_populates="salon")
     reviews = relationship("Review", back_populates="salon")
+    images = relationship("SalonImage", back_populates="salon")  # Add this relationship
 
 class Service(Base):
     __tablename__ = "services"
@@ -46,6 +48,18 @@ class Service(Base):
     
     salon = relationship("Salon", back_populates="services")
     booking_items = relationship("BookingItem", back_populates="service")
+
+# Add SalonImage model
+class SalonImage(Base):
+    __tablename__ = "salon_images"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    salon_id = Column(Integer, ForeignKey("salons.id"), nullable=False)
+    image_url = Column(String(500), nullable=False)
+    is_primary = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    salon = relationship("Salon", back_populates="images")
 
 class Review(Base):
     __tablename__ = "reviews"

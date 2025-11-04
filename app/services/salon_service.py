@@ -2,10 +2,9 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from sqlalchemy import and_
 
-from app.models.salon import Salon, Service, Review
+from app.models.salon import Salon, Service, Review, SalonImage
 from app.schemas.salon import SalonCreate, ServiceCreate, ReviewCreate
 
-# Salon Service
 class SalonService:
     @staticmethod
     def get_salons(db: Session, city: str = None, page: int = 1, limit: int = 10):
@@ -14,7 +13,6 @@ class SalonService:
         
         if city:
             query = query.filter(Salon.city.ilike(f"%{city}%"))
-
         
         # Pagination
         offset = (page - 1) * limit
