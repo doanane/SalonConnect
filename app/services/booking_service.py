@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from fastapi import HTTPException, status
 from datetime import datetime, date
@@ -6,12 +6,12 @@ from typing import Optional
 
 from app.models.booking import Booking, BookingItem, BookingStatus
 from app.models.salon import Service, Salon
+from app.models.user import User
 from app.schemas.booking import BookingCreate, BookingUpdate
 
 class BookingService:
     @staticmethod
     def create_booking(db: Session, booking_data: BookingCreate, customer_id: int):
-        
         salon = db.query(Salon).filter(Salon.id == booking_data.salon_id).first()
         if not salon:
             raise HTTPException(
@@ -19,7 +19,6 @@ class BookingService:
                 detail="Salon not found"
             )
         
-        total
         total_amount = 0
         total_duration = 0
         booking_items = []
@@ -48,7 +47,7 @@ class BookingService:
                 duration=service.duration
             ))
         
-        
+        # Create booking
         booking = Booking(
             customer_id=customer_id,
             salon_id=booking_data.salon_id,
@@ -62,22 +61,37 @@ class BookingService:
         db.commit()
         db.refresh(booking)
         
-        
+        # Create booking items
         for item in booking_items:
             item.booking_id = booking.id
             db.add(item)
         
         db.commit()
-        db.refresh(booking)
+        
+        # Reload booking with relationships for response
+        booking = db.query(Booking).options(
+            joinedload(Booking.customer),
+            joinedload(Booking.salon),
+            joinedload(Booking.items).joinedload(BookingItem.service)
+        ).filter(Booking.id == booking.id).first()
+        
         return booking
 
     @staticmethod
     def get_booking_by_id(db: Session, booking_id: int):
-        return db.query(Booking).filter(Booking.id == booking_id).first()
+        return db.query(Booking).options(
+            joinedload(Booking.customer),
+            joinedload(Booking.salon),
+            joinedload(Booking.items).joinedload(BookingItem.service)
+        ).filter(Booking.id == booking_id).first()
 
     @staticmethod
     def get_user_bookings(db: Session, user_id: int, status: str = None, page: int = 1, limit: int = 10):
-        query = db.query(Booking).filter(Booking.customer_id == user_id)
+        query = db.query(Booking).options(
+            joinedload(Booking.customer),
+            joinedload(Booking.salon),
+            joinedload(Booking.items).joinedload(BookingItem.service)
+        ).filter(Booking.customer_id == user_id)
         
         if status:
             query = query.filter(Booking.status == status)
@@ -87,7 +101,11 @@ class BookingService:
 
     @staticmethod
     def get_vendor_bookings(db: Session, vendor_id: int, status: str = None, page: int = 1, limit: int = 10):
-        query = db.query(Booking).join(Salon).filter(Salon.owner_id == vendor_id)
+        query = db.query(Booking).options(
+            joinedload(Booking.customer),
+            joinedload(Booking.salon),
+            joinedload(Booking.items).joinedload(BookingItem.service)
+        ).join(Salon).filter(Salon.owner_id == vendor_id)
         
         if status:
             query = query.filter(Booking.status == status)
@@ -111,22 +129,3 @@ class BookingService:
         db.commit()
         db.refresh(booking)
         return booking
-
-    @staticmethod
-    def get_vendor_bookings(db: Session, vendor_id: int, status: str = None, salon_id: Optional[int] = None, start_date: Optional[date] = None, end_date: Optional[date] = None):
-        """Get bookings for vendor's salons with advanced filtering"""
-        query = db.query(Booking).join(Salon).filter(Salon.owner_id == vendor_id)
-        
-        if status:
-            query = query.filter(Booking.status == status)
-        
-        if salon_id:
-            query = query.filter(Booking.salon_id == salon_id)
-            
-        if start_date:
-            query = query.filter(Booking.booking_date >= start_date)
-            
-        if end_date:
-            query = query.filter(Booking.booking_date <= end_date)
-        
-        return query.order_by(Booking.created_at.desc()).all()

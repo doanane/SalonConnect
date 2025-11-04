@@ -17,7 +17,7 @@ from app.models.booking import Booking, BookingStatus
 
 router = APIRouter()
 
-# Vendor authentication middleware
+
 async def get_current_vendor(token: str, db: Session = Depends(get_db)):
     payload = verify_token(token)
     if not payload:
@@ -42,7 +42,7 @@ async def get_current_vendor(token: str, db: Session = Depends(get_db)):
     
     return user
 
-# ==================== SALON MANAGEMENT ====================
+
 
 @router.post("/salons", response_model=SalonResponse)
 def create_salon(
@@ -64,7 +64,7 @@ def get_my_salons(
 @router.put("/salons/{salon_id}", response_model=SalonResponse)
 def update_salon(
     salon_id: int,
-    salon_data: dict,
+    salon_data: dict,  
     vendor: User = Depends(get_current_vendor),
     db: Session = Depends(get_db)
 ):
@@ -102,7 +102,7 @@ def upload_salon_images(
             result = upload_image(file.file, folder=f"salon_connect/salons/{salon_id}")
             image_url = result.get('secure_url')
             
-            # Save to database
+            
             salon_image = SalonImage(
                 salon_id=salon_id,
                 image_url=image_url,
@@ -117,7 +117,7 @@ def upload_salon_images(
     db.commit()
     return {"message": f"Uploaded {len(uploaded_images)} images", "images": uploaded_images}
 
-# ==================== SERVICE MANAGEMENT ====================
+
 
 @router.post("/salons/{salon_id}/services", response_model=ServiceResponse)
 def create_service(
@@ -179,7 +179,7 @@ def delete_service(
     db.commit()
     return {"message": "Service deleted successfully"}
 
-# ==================== BOOKING MANAGEMENT ====================
+
 
 @router.get("/bookings", response_model=List[BookingResponse])
 def get_vendor_bookings(
@@ -239,7 +239,7 @@ def get_booking_stats(
     """Get booking statistics for vendor"""
     from sqlalchemy import func, and_
     
-    # Get vendor's salons
+    
     salons = db.query(Salon).filter(Salon.owner_id == vendor.id).all()
     salon_ids = [salon.id for salon in salons]
     
@@ -252,7 +252,7 @@ def get_booking_stats(
             "revenue": 0
         }
     
-    # Date filtering
+    
     today = datetime.now().date()
     if period == "today":
         date_filter = func.date(Booking.created_at) == today
@@ -260,10 +260,10 @@ def get_booking_stats(
         date_filter = Booking.created_at >= today - timedelta(days=7)
     elif period == "month":
         date_filter = Booking.created_at >= today - timedelta(days=30)
-    else:  # year
+    else:  
         date_filter = Booking.created_at >= today - timedelta(days=365)
     
-    # Statistics
+    
     total_bookings = db.query(Booking).filter(
         Booking.salon_id.in_(salon_ids),
         date_filter
@@ -287,7 +287,7 @@ def get_booking_stats(
         date_filter
     ).count()
     
-    # Revenue calculation
+    
     revenue_result = db.query(func.sum(Booking.total_amount)).filter(
         Booking.salon_id.in_(salon_ids),
         Booking.status == BookingStatus.COMPLETED,
@@ -303,7 +303,7 @@ def get_booking_stats(
         "period": period
     }
 
-# ==================== VENDOR DASHBOARD ====================
+
 
 @router.get("/dashboard/overview")
 def get_vendor_overview(
@@ -313,18 +313,18 @@ def get_vendor_overview(
     """Get comprehensive vendor dashboard overview"""
     from sqlalchemy import func
     
-    # Basic stats
+    
     total_salons = db.query(Salon).filter(Salon.owner_id == vendor.id).count()
     salon_ids = [salon.id for salon in db.query(Salon.id).filter(Salon.owner_id == vendor.id).all()]
     
-    # Booking stats
+    
     total_bookings = db.query(Booking).filter(Booking.salon_id.in_(salon_ids)).count() if salon_ids else 0
     today_bookings = db.query(Booking).filter(
         Booking.salon_id.in_(salon_ids),
         func.date(Booking.created_at) == datetime.now().date()
     ).count() if salon_ids else 0
     
-    # Revenue stats
+    
     total_revenue = db.query(func.sum(Booking.total_amount)).filter(
         Booking.salon_id.in_(salon_ids),
         Booking.status == BookingStatus.COMPLETED
@@ -336,7 +336,7 @@ def get_vendor_overview(
         func.extract('month', Booking.created_at) == datetime.now().month
     ).scalar() or 0
     
-    # Recent bookings
+    
     recent_bookings = db.query(Booking).filter(
         Booking.salon_id.in_(salon_ids)
     ).order_by(Booking.created_at.desc()).limit(5).all() if salon_ids else []
@@ -375,7 +375,7 @@ def get_revenue_analytics(
         return {"data": []}
     
     if period == "week":
-        # Last 7 days
+        
         revenue_data = db.query(
             func.date(Booking.created_at).label('date'),
             func.sum(Booking.total_amount).label('revenue')
@@ -385,7 +385,7 @@ def get_revenue_analytics(
             Booking.created_at >= datetime.now().date() - timedelta(days=7)
         ).group_by(func.date(Booking.created_at)).all()
     elif period == "month":
-        # Last 30 days by day
+        
         revenue_data = db.query(
             func.date(Booking.created_at).label('date'),
             func.sum(Booking.total_amount).label('revenue')
@@ -394,8 +394,8 @@ def get_revenue_analytics(
             Booking.status == BookingStatus.COMPLETED,
             Booking.created_at >= datetime.now().date() - timedelta(days=30)
         ).group_by(func.date(Booking.created_at)).all()
-    else:  # year
-        # Last 12 months by month
+    else:  
+        
         revenue_data = db.query(
             extract('month', Booking.created_at).label('month'),
             func.sum(Booking.total_amount).label('revenue')

@@ -1,11 +1,15 @@
-from .user import User, UserProfile
-from .salon import Salon, Service, Review, SalonImage
-from .booking import Booking, BookingItem
-from .payment import Payment
+from .user import User, UserProfile, PasswordReset, UserRole, user_favorites
+from .salon import Salon, Service, SalonImage, Review
+from .booking import Booking, BookingItem, BookingStatus
+from .payment import Payment, PaymentStatus, PaymentMethod
+
+# Configure relationships after all models are imported
+from sqlalchemy.orm import configure_mappers
+configure_mappers()
 
 __all__ = [
-    "User", "UserProfile",
-    "Salon", "Service", "Review", "SalonImage",
-    "Booking", "BookingItem", 
-    "Payment"
+    "User", "UserProfile", "PasswordReset", "UserRole", "user_favorites",
+    "Salon", "Service", "SalonImage", "Review",
+    "Booking", "BookingItem", "BookingStatus", 
+    "Payment", "PaymentStatus", "PaymentMethod"
 ]

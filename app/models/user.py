@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Enum, ForeignKey, Table
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -8,6 +8,15 @@ class UserRole(str, enum.Enum):
     CUSTOMER = "customer"
     VENDOR = "vendor"
     ADMIN = "admin"
+
+# Association table for user favorites
+user_favorites = Table(
+    'user_favorites',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('salon_id', Integer, ForeignKey('salons.id'), primary_key=True),
+    Column('created_at', DateTime(timezone=True), server_default=func.now())
+)
 
 class User(Base):
     __tablename__ = "users"
@@ -24,9 +33,11 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
+    # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     salons = relationship("Salon", back_populates="owner")
     bookings = relationship("Booking", back_populates="customer")
+    favorite_salons = relationship("Salon", secondary=user_favorites, backref="favorited_by_users")
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
@@ -47,3 +58,13 @@ class UserProfile(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     user = relationship("User", back_populates="profile")
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    token = Column(String(255), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

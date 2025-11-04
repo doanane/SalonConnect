@@ -1,5 +1,5 @@
 from pydantic import BaseModel, validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 class SalonBase(BaseModel):
@@ -18,13 +18,25 @@ class SalonBase(BaseModel):
 class SalonCreate(SalonBase):
     pass
 
+class SalonUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    address: Optional[str] = None
+    phone_number: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    opening_hours: Optional[str] = None
+
 class SalonResponse(SalonBase):
     id: int
     owner_id: int
+    latitude: Optional[str] = None
+    longitude: Optional[str] = None
     is_active: bool
     is_verified: bool
     average_rating: float
     total_reviews: int
+    is_favorited: bool = False
     created_at: datetime
     updated_at: Optional[datetime]
 
@@ -39,6 +51,13 @@ class ServiceBase(BaseModel):
 
 class ServiceCreate(ServiceBase):
     pass
+
+class ServiceUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    duration: Optional[int] = None
+    price: Optional[float] = None
+    is_active: Optional[bool] = None
 
 class ServiceResponse(ServiceBase):
     id: int
@@ -67,8 +86,16 @@ class ReviewResponse(ReviewBase):
     id: int
     salon_id: int
     customer_id: int
+    customer_name: str
     is_approved: bool
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class SalonSearch(BaseModel):
+    query: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    min_rating: Optional[float] = None
+    service_name: Optional[str] = None
