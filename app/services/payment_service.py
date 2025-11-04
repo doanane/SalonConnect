@@ -19,7 +19,7 @@ class PaymentService:
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
         
-        # Create payment record
+        
         payment_reference = str(uuid.uuid4())
         payment = Payment(
             booking_id=booking_id,
@@ -31,7 +31,7 @@ class PaymentService:
         db.add(payment)
         db.commit()
         
-        # Initialize Paystack payment
+        
         try:
             headers = {
                 "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -75,7 +75,7 @@ class PaymentService:
         if not payment:
             raise HTTPException(status_code=404, detail="Payment not found")
         
-        # Verify payment with Paystack
+        
         try:
             headers = {
                 "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -94,7 +94,7 @@ class PaymentService:
                     payment.paystack_reference = data['data']['reference']
                     payment.paid_at = datetime.now()
                     
-                    # Update booking status
+                    
                     payment.booking.status = BookingStatus.CONFIRMED
                     
                     db.commit()

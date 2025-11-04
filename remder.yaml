@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: salon-connect-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: salon-connect-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CLOUDINARY_CLOUD_NAME
+        value: di9rqswkq
+      - key: CLOUDINARY_API_KEY
+        value: 647972664874135
+      - key: CLOUDINARY_API_SECRET
+        value: 70UwF08RUAtr8DaeT_KCF-jsiKs
+      - key: PAYSTACK_SECRET_KEY
+        value: sk_test_37c36271f7c4f2d2f44f7ebb83c78576af769ee8
+      - key: PAYSTACK_PUBLIC_KEY
+        value: pk_test_6fa48246c348525438b7b0e15c9f1d964fb98e23
+      - key: PAYSTACK_BASE_URL
+        value: https://api.paystack.co
+
+databases:
+  - name: salon-connect-db
+    plan: free
+    databaseName: salon_connect
+    user: salon_user

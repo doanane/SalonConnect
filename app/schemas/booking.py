@@ -21,7 +21,6 @@ class BookingBase(BaseModel):
 class BookingCreate(BookingBase):
     items: List[BookingItemBase]
 
-# Add the missing BookingUpdate schema
 class BookingUpdate(BaseModel):
     status: Optional[BookingStatus] = None
     special_requests: Optional[str] = None

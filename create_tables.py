@@ -16,16 +16,25 @@ from app.routes import auth, users, salons, bookings, payments, vendor
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # No table creation - tables already exist in production
-    print("🚀 Salon Connect API Starting...")
-    try:
-        # Test database connection
-        with engine.connect() as conn:
-            print("✅ Database connection successful")
-    except Exception as e:
-        print(f"❌ Database connection failed: {e}")
+    # Only create tables in development
+    if os.getenv("DEBUG", "False").lower() == "true":
+        print("🛠️ Development mode - creating database tables...")
+        try:
+            User.metadata.create_all(bind=engine)
+            UserProfile.metadata.create_all(bind=engine)
+            Salon.metadata.create_all(bind=engine)
+            Service.metadata.create_all(bind=engine)
+            Review.metadata.create_all(bind=engine)
+            SalonImage.metadata.create_all(bind=engine)
+            Booking.metadata.create_all(bind=engine)
+            BookingItem.metadata.create_all(bind=engine)
+            Payment.metadata.create_all(bind=engine)
+            print("✅ Database tables created successfully")
+        except Exception as e:
+            print(f"❌ Error creating tables: {e}")
+    else:
+        print("🚀 Production mode - using existing database tables")
     yield
-    print("🛑 Salon Connect API Shutting down...")
 
 security_scheme = HTTPBearer()
 
@@ -40,7 +49,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Update with your frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,6 +74,7 @@ async def root():
 async def health_check():
     return {"status": "healthy", "message": "Salon Connect API is running"}
 
+# For health checks
 @app.get("/ping")
 async def ping():
     return {"message": "pong"}

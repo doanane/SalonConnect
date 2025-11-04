@@ -31,7 +31,7 @@ class Salon(Base):
     services = relationship("Service", back_populates="salon")
     bookings = relationship("Booking", back_populates="salon")
     reviews = relationship("Review", back_populates="salon")
-    images = relationship("SalonImage", back_populates="salon")  # Add this relationship
+    images = relationship("SalonImage", back_populates="salon")
 
 class Service(Base):
     __tablename__ = "services"
@@ -49,7 +49,7 @@ class Service(Base):
     salon = relationship("Salon", back_populates="services")
     booking_items = relationship("BookingItem", back_populates="service")
 
-# Add SalonImage model
+
 class SalonImage(Base):
     __tablename__ = "salon_images"
     

@@ -36,7 +36,7 @@ class PaymentInitiate(BaseModel):
     booking_id: int
     callback_url: Optional[str] = None
 
-# Add the missing PaymentVerification schema
+
 class PaymentVerification(BaseModel):
     reference: str
 
