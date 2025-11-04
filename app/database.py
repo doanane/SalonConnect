@@ -7,19 +7,21 @@ from app.core.config import settings
 # Handle database URL
 database_url = settings.DATABASE_URL
 
-# In production, require PostgreSQL
-if not database_url and os.getenv("RENDER", None):
-    raise ValueError("DATABASE_URL must be set in production")
+# Debug: Check if we're in Render
+print(f"🔍 DEBUG: DATABASE_URL exists: {bool(database_url)}")
+print(f"🔍 DEBUG: RENDER environment: {os.getenv('RENDER', 'Not set')}")
 
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-# Fallback to SQLite only in development
+# Fallback to SQLite if no DATABASE_URL
 if not database_url:
     database_url = "sqlite:///./salon_connect.db"
     print("🔗 Development: Using SQLite")
 else:
     print("🔗 Production: Using PostgreSQL")
+
+print(f"🔗 Final database URL: {database_url.split('@')[1] if '@' in database_url else 'SQLite'}")
 
 engine = create_engine(
     database_url,
