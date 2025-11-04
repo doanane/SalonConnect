@@ -11,7 +11,7 @@ from app.schemas.booking import BookingCreate, BookingUpdate
 class BookingService:
     @staticmethod
     def create_booking(db: Session, booking_data: BookingCreate, customer_id: int):
-        # Check if salon exists
+        
         salon = db.query(Salon).filter(Salon.id == booking_data.salon_id).first()
         if not salon:
             raise HTTPException(
@@ -19,7 +19,7 @@ class BookingService:
                 detail="Salon not found"
             )
         
-        # Validate services and calculate total
+        total
         total_amount = 0
         total_duration = 0
         booking_items = []
@@ -48,7 +48,7 @@ class BookingService:
                 duration=service.duration
             ))
         
-        # Create booking
+        
         booking = Booking(
             customer_id=customer_id,
             salon_id=booking_data.salon_id,
@@ -62,7 +62,7 @@ class BookingService:
         db.commit()
         db.refresh(booking)
         
-        # Create booking items
+        
         for item in booking_items:
             item.booking_id = booking.id
             db.add(item)

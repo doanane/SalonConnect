@@ -7,7 +7,7 @@ load_dotenv()
 class Settings(BaseSettings):
     # App
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "fallback-secret-key-change-in-production")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     
     # Database
@@ -21,7 +21,10 @@ class Settings(BaseSettings):
     # Paystack
     PAYSTACK_SECRET_KEY: str = os.getenv("PAYSTACK_SECRET_KEY", "")
     PAYSTACK_PUBLIC_KEY: str = os.getenv("PAYSTACK_PUBLIC_KEY", "")
-    PAYSTACK_BASE_URL: str = os.getenv("PAYSTACK_BASE_URL", "")
+    PAYSTACK_BASE_URL: str = os.getenv("PAYSTACK_BASE_URL", "https://api.paystack.co")
+    PAYSTACK_WEBHOOK_SECRET: str = os.getenv("PAYSTACK_WEBHOOK_SECRET", "")
+    PAYMENT_SUCCESS_URL: str = os.getenv("PAYMENT_SUCCESS_URL", "")
+    PAYMENT_CANCEL_URL: str = os.getenv("PAYMENT_CANCEL_URL", "")
     
     class Config:
         case_sensitive = True

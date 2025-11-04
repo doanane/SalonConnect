@@ -10,7 +10,7 @@ def initialize_payment(email: str, amount: float, reference: str, metadata: dict
     
     data = {
         'email': email,
-        'amount': int(amount * 100),  # Convert to kobo
+        'amount': int(amount * 100),  
         'reference': reference,
         'currency': 'NGN',
         'callback_url': f"{settings.FRONTEND_URL}/payment/verify",
@@ -64,7 +64,7 @@ def create_refund(transaction_reference: str, amount: float):
     
     data = {
         'transaction': transaction_reference,
-        'amount': int(amount * 100),  # Convert to kobo
+        'amount': int(amount * 100),  
         'currency': 'NGN',
     }
     
