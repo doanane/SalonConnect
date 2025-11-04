@@ -7,12 +7,11 @@ from contextlib import asynccontextmanager
 
 from app.database import engine
 from app.models.user import User, UserProfile
-from app.models.salon import Salon, Service, Review
+from app.models.salon import Salon, Service, Review, SalonImage
 from app.models.booking import Booking, BookingItem
 from app.models.payment import Payment
 
-from app.routes import auth, users, salons, bookings, payments
-
+from app.routes import auth, users, salons, bookings, payments, vendor  
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Creating database tables...")
@@ -22,6 +21,7 @@ async def lifespan(app: FastAPI):
         Salon.metadata.create_all(bind=engine)
         Service.metadata.create_all(bind=engine)
         Review.metadata.create_all(bind=engine)
+        SalonImage.metadata.create_all(bind=engine)  # Add this
         Booking.metadata.create_all(bind=engine)
         BookingItem.metadata.create_all(bind=engine)
         Payment.metadata.create_all(bind=engine)
@@ -54,6 +54,7 @@ app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(salons.router, prefix="/api/salons", tags=["Salons"])
 app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
+app.include_router(vendor.router, prefix="/api/vendor", tags=["Vendor Management"])  # Add this
 
 @app.get("/")
 async def root():
