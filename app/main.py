@@ -1,0 +1,103 @@
+from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
+from fastapi.security import HTTPBearer
+from contextlib import asynccontextmanager
+
+from app.database import engine
+from app.models.user import User, UserProfile
+from app.models.salon import Salon, Service, Review
+from app.models.booking import Booking, BookingItem
+from app.models.payment import Payment
+
+from app.routes import auth, users, salons, bookings, payments
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Creating database tables...")
+    try:
+        User.metadata.create_all(bind=engine)
+        UserProfile.metadata.create_all(bind=engine)
+        Salon.metadata.create_all(bind=engine)
+        Service.metadata.create_all(bind=engine)
+        Review.metadata.create_all(bind=engine)
+        Booking.metadata.create_all(bind=engine)
+        BookingItem.metadata.create_all(bind=engine)
+        Payment.metadata.create_all(bind=engine)
+        print("✅ Database tables created successfully")
+    except Exception as e:
+        print(f"❌ Error creating tables: {e}")
+    yield
+
+security_scheme = HTTPBearer()
+
+app = FastAPI(
+    title="Salon Connect API",
+    description="A platform connecting salons with customers",
+    version="1.0.0",
+    docs_url=None,
+    redoc_url=None,
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router, prefix="/api/users", tags=["Authentication"])
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(salons.router, prefix="/api/salons", tags=["Salons"])
+app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
+app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to Salon Connect API"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "message": "Salon Connect API is running"}
+
+# Custom docs with Bearer authentication
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title="Salon Connect API - Documentation",
+        swagger_ui_parameters={"defaultModelsExpandDepth": -1}
+    )
+
+@app.get("/openapi.json", include_in_schema=False)
+async def get_openapi_endpoint():
+    openapi_schema = get_openapi(
+        title="Salon Connect API",
+        version="1.0.0",
+        description="A platform connecting salons with customers",
+        routes=app.routes,
+    )
+    
+    # Add Bearer authentication to OpenAPI schema
+    openapi_schema["components"]["securitySchemes"] = {
+        "Bearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT"
+        }
+    }
+    
+    # Add security requirement to protected endpoints
+    for path in openapi_schema["paths"]:
+        for method in openapi_schema["paths"][path]:
+            if method in ["get", "post", "put", "delete"]:
+                endpoint = openapi_schema["paths"][path][method]
+                # Add security to endpoints that require authentication
+                if any(tag in ["Users", "Bookings", "Payments"] for tag in endpoint.get("tags", [])):
+                    if "security" not in endpoint:
+                        endpoint["security"] = [{"Bearer": []}]
+    
+    return openapi_schema

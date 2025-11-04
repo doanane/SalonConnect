@@ -1,0 +1,38 @@
+.env
+.venv
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+
+# Environment
+.env
+.venv
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database (PostgreSQL)
+*.pid
+*.lock
+
+.history
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3                   
