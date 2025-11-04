@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -31,17 +31,16 @@ class BookingItemResponse(BookingItemBase):
     booking_id: int
     price: float
     duration: int
-    service_name: str
+    service_name: Optional[str] = None  # Make optional
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class BookingResponse(BookingBase):
     id: int
     customer_id: int
-    customer_name: str
-    salon_name: str
+    customer_name: Optional[str] = None  # Make optional
+    salon_name: Optional[str] = None     # Make optional
     duration: int
     total_amount: float
     currency: str
@@ -51,5 +50,4 @@ class BookingResponse(BookingBase):
     updated_at: Optional[datetime]
     items: List[BookingItemResponse]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

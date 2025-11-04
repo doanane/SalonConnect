@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from sqlalchemy import and_
+from typing import List, Optional
 
 from app.models.salon import Salon, Service, Review, SalonImage
 from app.schemas.salon import SalonCreate, ServiceCreate, ReviewCreate
