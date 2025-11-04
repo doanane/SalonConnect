@@ -123,3 +123,4 @@ vine
 wcwidth
 Werkzeug
 wheel
+httpx
