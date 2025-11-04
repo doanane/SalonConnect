@@ -5,6 +5,9 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import os
+import asyncio
+import httpx
+import time
 
 from app.database import engine
 from app.models.user import User, UserProfile
@@ -13,6 +16,39 @@ from app.models.booking import Booking, BookingItem
 from app.models.payment import Payment
 
 from app.routes import auth, users, salons, bookings, payments, vendor
+
+# Keep-alive function
+async def keep_alive():
+    """Ping the app every 10 minutes to prevent Render sleep"""
+    # Wait a bit for server to be fully ready
+    await asyncio.sleep(30)
+    
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Try multiple endpoints in case one fails
+                endpoints = [
+                    "https://salonconnect-qzne.onrender.com/health",
+                    "https://salonconnect-qzne.onrender.com/",
+                    "https://salonconnect-qzne.onrender.com/ping"
+                ]
+                
+                for endpoint in endpoints:
+                    try:
+                        response = await client.get(endpoint)
+                        print(f"✅ Keep-alive ping successful to {endpoint} - Status: {response.status_code}")
+                        break  # If one works, no need to try others
+                    except Exception as e:
+                        print(f"⚠️  Ping failed for {endpoint}: {e}")
+                        continue
+                else:
+                    print("❌ All ping attempts failed")
+                    
+        except Exception as e:
+            print(f"❌ Keep-alive ping failed: {e}")
+        
+        # Wait 10 minutes before next ping
+        await asyncio.sleep(600)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,7 +67,15 @@ async def lifespan(app: FastAPI):
         print("✅ All production tables created successfully!")
     except Exception as e:
         print(f"❌ Error creating tables: {e}")
+    
+    # Start the keep-alive task
+    print("🚀 Starting keep-alive service...")
+    keep_alive_task = asyncio.create_task(keep_alive())
+    
     yield
+    
+    # Cleanup (optional)
+    keep_alive_task.cancel()
 
 security_scheme = HTTPBearer()
 
