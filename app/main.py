@@ -8,6 +8,8 @@ import os
 import asyncio
 import httpx
 import time
+from app.routes import favorites
+
 
 from app.database import engine
 from app.models.user import User, UserProfile
@@ -102,6 +104,7 @@ app.include_router(salons.router, prefix="/api/salons", tags=["Salons"])
 app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
 app.include_router(vendor.router, prefix="/api/vendor", tags=["Vendor Management"])
+app.include_router(favorites.router, prefix="/api/users", tags=["Favorites"])
 
 @app.get("/")
 async def root():
