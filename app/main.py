@@ -16,16 +16,22 @@ from app.routes import auth, users, salons, bookings, payments, vendor
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # No table creation - tables already exist in production
-    print("🚀 Salon Connect API Starting...")
+    # TEMPORARY: Always create tables to fix production issue
+    print("🛠️ Creating database tables in production...")
     try:
-        # Test database connection
-        with engine.connect() as conn:
-            print("✅ Database connection successful")
+        User.metadata.create_all(bind=engine)
+        UserProfile.metadata.create_all(bind=engine)
+        Salon.metadata.create_all(bind=engine)
+        Service.metadata.create_all(bind=engine)
+        Review.metadata.create_all(bind=engine)
+        SalonImage.metadata.create_all(bind=engine)
+        Booking.metadata.create_all(bind=engine)
+        BookingItem.metadata.create_all(bind=engine)
+        Payment.metadata.create_all(bind=engine)
+        print("✅ All production tables created successfully!")
     except Exception as e:
-        print(f"❌ Database connection failed: {e}")
+        print(f"❌ Error creating tables: {e}")
     yield
-    print("🛑 Salon Connect API Shutting down...")
 
 security_scheme = HTTPBearer()
 
