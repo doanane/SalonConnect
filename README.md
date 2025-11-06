@@ -1,552 +1,290 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Salon Connect - Backend API Documentation</title>
-<style>
-  :root{
-    --primary:#4F46E5;
-    --primary-2:#7C3AED;
-    --accent:#059669;
-    --bg:#ffffff;
-    --muted:#6b7280;
-    --card:#fbfbff;
-    --mono: "SFMono-Regular", Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
-  }
-  body{
-    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    margin:0;
-    background: linear-gradient(180deg,#ffffff 0%, #fbf8ff 100%);
-    color:#111827;
-    line-height:1.5;
-    padding:28px;
-  }
-  .wrap{
-    max-width:1100px;
-    margin:0 auto;
-    background: linear-gradient(180deg,#ffffff 0%, #fbfbff 60%);
-    border-radius:12px;
-    box-shadow:0 10px 30px rgba(79,70,229,0.08);
-    padding:28px;
-    border: 1px solid rgba(79,70,229,0.06);
-  }
-  .hero{
-    text-align:center;
-    padding:22px 12px;
-    margin-bottom:18px;
-  }
-  .title{
-    display:block;
-    font-size:34px;
-    font-weight:800;
-    color:var(--primary);
-    letter-spacing:-0.5px;
-  }
-  .subtitle{
-    display:block;
-    margin-top:8px;
-    font-size:16px;
-    color:var(--primary-2);
-    font-weight:600;
-  }
-  .toc{
-    margin:18px 0 26px 0;
-    padding:16px;
-    background:linear-gradient(90deg, rgba(124,58,237,0.04), rgba(79,70,229,0.02));
-    border-radius:10px;
-    border:1px solid rgba(124,58,237,0.06);
-  }
-  .toc h3{margin:0 0 8px 0; font-size:18px; color:var(--accent);}
-  .toc ul{margin:6px 0 0 18px; color:var(--muted);}
-  h2{
-    color:var(--accent);
-    font-size:20px;
-    margin-top:24px;
-    margin-bottom:10px;
-  }
-  h3{color:var(--primary-2); font-size:16px; margin:12px 0;}
-  p.lead{color:#374151;}
-  .grid{
-    display:grid;
-    grid-template-columns: 1fr;
-    gap:14px;
-  }
-  .card{
-    background:var(--card);
-    border-radius:10px;
-    padding:14px 16px;
-    border:1px solid rgba(79,70,229,0.04);
-  }
-  .field{
-    font-weight:600;
-    color:var(--primary-2);
-    margin-bottom:6px;
-  }
-  pre.code{
-    background:#0f1724;
-    color:#dbeafe;
-    padding:14px;
-    border-radius:8px;
-    overflow:auto;
-    font-family: var(--mono);
-    font-size:13px;
-    line-height:1.45;
-    margin:10px 0;
-  }
-  .file-tree{
-    background:#0b1220;
-    color:#d1d5db;
-    padding:12px;
-    border-radius:8px;
-    font-family:var(--mono);
-    font-size:13px;
-    overflow:auto;
-  }
-  table{
-    width:100%;
-    border-collapse:collapse;
-    margin:8px 0 12px 0;
-  }
-  th, td{
-    text-align:left;
-    padding:8px 10px;
-    border-bottom:1px dashed rgba(17,24,39,0.06);
-    font-size:14px;
-  }
-  th{background:transparent; color:var(--primary-2); font-weight:700;}
-  a{
-    color:var(--primary);
-    text-decoration:none;
-    font-weight:600;
-  }
-  .center{ text-align:center; }
-  .footer{
-    text-align:center;
-    color:var(--muted);
-    font-size:13px;
-    padding-top:18px;
-    border-top:1px solid rgba(17,24,39,0.03);
-    margin-top:22px;
-  }
-  .badge{
-    display:inline-block;
-    padding:6px 10px;
-    border-radius:999px;
-    background:linear-gradient(90deg,var(--primary),var(--primary-2));
-    color:white;
-    font-weight:700;
-    font-size:12px;
-  }
-  .link-list a{display:block; margin:4px 0; color:#0f1724}
-  @media (min-width:900px){
-    .grid{grid-template-columns: 1fr 360px;}
-  }
-</style>
-</head>
-<body>
-  <div class="wrap">
+# Salon Connect API
 
-    <div class="hero">
-      <span class="title">Salon Connect API</span>
-      <span class="subtitle">A Complete Salon Booking Platform Backend</span>
-      <div style="margin-top:12px;">
-        <span class="badge">FastAPI • PostgreSQL • Paystack</span>
-      </div>
-    </div>
+A complete backend API for a salon booking platform that connects customers with salons. This README is written as plain explanations and reference tables — no source code is shown here. It explains what each part of the codebase does, how the API behaves, and how to operate, extend, and deploy the system.
 
-    <div class="toc card">
-      <h3>Table of Contents</h3>
-      <ul>
-        <li>Overview</li>
-        <li>Features</li>
-        <li>Technology Stack</li>
-        <li>Project Structure</li>
-        <li>Installation & Setup</li>
-        <li>Environment Configuration</li>
-        <li>API Endpoints</li>
-        <li>Authentication</li>
-        <li>Database Models</li>
-        <li>Running the Application</li>
-        <li>Testing</li>
-        <li>Deployment</li>
-      </ul>
-    </div>
+---
 
-    <div class="grid">
-      <div>
-        <section class="card">
-          <h2>Overview</h2>
-          <p class="lead">
-            Salon Connect is a comprehensive backend API for a salon booking platform that connects customers with salons in their area. The system provides full functionality for user registration, salon discovery, booking management, payment processing, and vendor analytics.
-          </p>
+## Quick overview
 
-          <h2>Live URLs</h2>
-          <div class="link-list">
-            <a href="https://salonconnect-qzne.onrender.com" target="_blank" rel="noopener">https://salonconnect-qzne.onrender.com</a>
-            <a href="https://salonconnect-qzne.onrender.com/docs" target="_blank" rel="noopener">Interactive Docs (Swagger) - /docs</a>
-            <a href="https://salonconnect-qzne.onrender.com/health" target="_blank" rel="noopener">Health Check - /health</a>
-            <a href="https://salon-connect-api.onrender.com" target="_blank" rel="noopener">https://salon-connect-api.onrender.com</a>
-            <a href="https://salon-connect-api.onrender.com/docs" target="_blank" rel="noopener">Alternative Base - /docs</a>
-            <a href="https://salon-connect-api.onrender.com/health" target="_blank" rel="noopener">Alternative Health - /health</a>
-          </div>
+Salon Connect provides:
+- User management (customers, vendors, admins) with JWT authentication and password reset flows.
+- Salon discovery and management with search, filters, reviews, and featured listings.
+- A booking system supporting multi-service bookings and booking lifecycle states.
+- Payment integration with Paystack (initiate, verify, webhooks).
+- Vendor dashboard features (revenue insights, bookings analytics).
+- File storage for images (Cloudinary) and email support for password resets.
 
-          <h2>Features</h2>
+Live deployments (examples)
+- Primary: https://salonconnect-qzne.onrender.com
+- Docs (Swagger): https://salonconnect-qzne.onrender.com/docs
+- Health: https://salonconnect-qzne.onrender.com/health
 
-          <h3>User Management</h3>
-          <ul>
-            <li>User registration and authentication</li>
-            <li>Role-based access control (Customer, Vendor, Admin)</li>
-            <li>Profile management with image uploads</li>
-            <li>Password reset functionality</li>
-            <li>JWT token-based authentication</li>
-          </ul>
+---
 
-          <h3>Salon Discovery</h3>
-          <ul>
-            <li>Browse salons with search and filters</li>
-            <li>Location-based salon discovery</li>
-            <li>Ratings, reviews and favorites</li>
-            <li>Featured and nearby salon listings</li>
-          </ul>
+## Key features (short)
 
-          <h3>Booking System</h3>
-          <ul>
-            <li>Multi-service booking capability</li>
-            <li>Real-time availability checking</li>
-            <li>Booking lifecycle (Pending, Confirmed, Completed, Cancelled)</li>
-          </ul>
+- Role-based access control: Customer, Vendor, Admin.
+- JWT Authentication: Access & Refresh tokens.
+- Salon & service model with images and reviews.
+- Booking lifecycle: Pending → Confirmed → Completed → Cancelled.
+- Paystack integration with webhook handling and transaction verification.
+- Cloudinary for file uploads (images).
+- Auto-generated OpenAPI docs (Swagger / ReDoc).
 
-          <h3>Payment Integration</h3>
-          <ul>
-            <li>Paystack gateway integration</li>
-            <li>Secure transaction verification and webhooks</li>
-            <li>Payment status tracking</li>
-          </ul>
+---
 
-          <h3>Vendor Dashboard</h3>
-          <ul>
-            <li>Revenue insights, booking analytics</li>
-            <li>Service & salon management</li>
-          </ul>
+## Architecture & technology
 
-          <h2>Technology Stack</h2>
-          <ul>
-            <li><strong>Framework:</strong> FastAPI</li>
-            <li><strong>Database:</strong> PostgreSQL with SQLAlchemy ORM</li>
-            <li><strong>Authentication:</strong> JWT Tokens</li>
-            <li><strong>File Storage:</strong> Cloudinary</li>
-            <li><strong>Payments:</strong> Paystack</li>
-            <li><strong>Email:</strong> SMTP (password resets)</li>
-            <li><strong>Docs:</strong> Auto-generated Swagger/OpenAPI</li>
-          </ul>
+This section maps the architecture to the technologies used.
 
-          <h2>Project Structure</h2>
-          <div class="file-tree" aria-label="Project structure">
-salon_connect_fastapi/
-├── app/
-│   ├── main.py                 # FastAPI application entry point
-│   ├── database.py             # Database configuration
-│   ├── models/
-│   │   ├── user.py             # User and authentication models
-│   │   ├── salon.py            # Salon and service models
-│   │   ├── booking.py          # Booking system models
-│   │   └── payment.py          # Payment processing models
-│   ├── schemas/
-│   │   ├── user.py
-│   │   ├── salon.py
-│   │   ├── booking.py
-│   │   └── payment.py
-│   ├── routes/
-│   │   ├── auth.py             # Authentication endpoints
-│   │   ├── users.py            # User management endpoints
-│   │   ├── salons.py           # Salon discovery endpoints
-│   │   ├── bookings.py         # Booking management endpoints
-│   │   ├── payments.py         # Payment processing endpoints
-│   │   └── favorites.py        # Favorites management endpoints
-│   ├── services/
-│   │   ├── auth.py
-│   │   ├── salon_service.py
-│   │   ├── booking_service.py
-│   │   ├── payment_service.py
-│   │   └── email.py
-│   ├── core/
-│   │   ├── config.py
-│   │   ├── security.py
-│   │   └── cloudinary.py
-│   └── utils/
-│       └── validators.py
-├── requirements.txt
-├── .env
-└── README.md
-          </div>
+| Layer | Technology | Purpose / comments |
+|---|---:|---|
+| Web framework | FastAPI | High-performance async API framework, auto-generated OpenAPI docs |
+| ASGI server | Uvicorn (recommended) | Production and development server for FastAPI |
+| Database | PostgreSQL + SQLAlchemy | Relational persistence and ORM |
+| Migrations | (Recommended) Alembic | For controlled schema changes in production |
+| Authentication | JSON Web Tokens (JWT) | Short-lived access tokens + refresh token patterns |
+| File storage | Cloudinary | Hosted file/image storage |
+| Payments | Paystack | Payment gateway and webhooks |
+| Email | SMTP (configurable) | Password reset and transactional emails |
+| Deployment | Render.com or similar | Example deployment target in README |
 
-          <h2>Installation & Setup</h2>
-          <ol>
-            <li>Clone the repository:
-              <div class="pre">
-                <pre class="code">git clone &lt;repository-url&gt;
-cd salon_connect_fastapi</pre>
-              </div>
-            </li>
-            <li>Create virtual environment and activate:
-              <div class="pre">
-                <pre class="code">python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate</pre>
-              </div>
-            </li>
-            <li>Install dependencies:
-              <div class="pre">
-                <pre class="code">pip install -r requirements.txt</pre>
-              </div>
-            </li>
-            <li>Set up environment variables (see Environment Configuration below).</li>
-            <li>Initialize the database (app will create tables on first run):
-              <div class="pre">
-                <pre class="code">python run.py</pre>
-              </div>
-            </li>
-          </ol>
+---
 
-          <h2>Environment Configuration</h2>
-          <p>Place the following in a <code>.env</code> file at the repo root:</p>
-          <pre class="code"># Application
-DEBUG=False
-SECRET_KEY=your-secret-key-here
+## Project structure (conceptual)
 
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/salon_connect
+This table explains what each top-level directory / file in the app layer is responsible for. The goal is to help contributors find logic without exposing implementation details.
 
-# Cloudinary
-CLOUDINARY_CLOUD_NAME=your-cloud-name
-CLOUDINARY_API_KEY=your-api-key
-CLOUDINARY_API_SECRET=your-api-secret
+| Path | Responsibility |
+|---|---|
+| app/main.py | Application entrypoint: mounts routers, middleware, and startup/shutdown events |
+| app/database.py | Database engine and session/connection helpers |
+| app/models/ | ORM models representing database tables (User, Salon, Service, Booking, Payment, etc.) |
+| app/schemas/ | Pydantic request/response models used for validation and serialization |
+| app/routes/ | HTTP route handlers organized by domain (auth, users, salons, bookings, payments, favorites) |
+| app/services/ | Business logic and helpers reused by routes (auth, booking logic, payments, email) |
+| app/core/ | Configuration, security utilities (JWT helpers), Cloudinary integration, environment loading |
+| app/utils/ | Generic helpers and validators used across the codebase |
+| requirements.txt | Python dependencies list |
+| .env | Example environment variables for local development |
 
-# Email (for password reset)
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-password
-DEFAULT_FROM_EMAIL=your-email@gmail.com
+---
 
-# Paystack
-PAYSTACK_SECRET_KEY=sk_test_your-secret-key
-PAYSTACK_PUBLIC_KEY=pk_test_your-public-key
-PAYSTACK_BASE_URL=https://api.paystack.co
+## Module responsibilities — detailed explanation
 
-# JWT
-ACCESS_TOKEN_EXPIRE_MINUTES=30</pre>
+This table maps major modules to the behaviors you can expect from them.
 
-          <h2>API Endpoints</h2>
-          <p>The API exposes authentication, user management, salon discovery, booking, payments, favorites and vendor analytics endpoints. Two base domains (both active) are linked above.</p>
+| Module / File | What it does (behavioral description) |
+|---|---|
+| auth routes (routes/auth.py) | Handles registration, login, logout, password reset request & execution, token verify endpoints. Uses JWT for authentication and issues access/refresh tokens. |
+| users routes (routes/users.py) | Returns current user profile, updates profile, returns role and user-specific dashboards for customers and vendors. Handles profile image uploads. |
+| salons routes (routes/salons.py) | CRUD for salons (vendors), search, filters, featured and nearby listings, salon details, service management (list/add). |
+| bookings routes (routes/bookings.py) | Create bookings (multi-service), check availability, update bookings, vendor and customer booking views, booking status transitions. |
+| payments routes (routes/payments.py) | Initiate payments using Paystack, verify transactions, and accept Paystack webhook callbacks for asynchronous confirmation. |
+| favorites routes (routes/favorites.py) | Add/remove/list favorite salons per user. |
+| models/ (user.py, salon.py, booking.py, payment.py) | Database table definitions: relationships, indexes used for search/filters, status enums for booking/payment lifecycle. |
+| services (payment_service.py) | Encapsulates payment gateway calls, verification logic, idempotency and webhook signature verification. |
+| services (email.py) | Manages password reset tokens, constructs and sends email messages via configured SMTP server. |
+| core/config.py | Loads configuration from environment and exposes typed config to the rest of the app. |
+| core/security.py | Password hashing, token generation and parsing, permission checks for role-based guards. |
+| core/cloudinary.py | Upload helpers and transformation presets for images stored on Cloudinary. |
 
-          <h3>Authentication Endpoints</h3>
-          <table>
-            <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-            <tbody>
-              <tr><td>POST</td><td>/api/users/register</td><td>Register new user</td><td>Public</td></tr>
-              <tr><td>POST</td><td>/api/users/login</td><td>User login</td><td>Public</td></tr>
-              <tr><td>POST</td><td>/api/users/forgot-password</td><td>Request password reset</td><td>Public</td></tr>
-              <tr><td>POST</td><td>/api/users/reset-password</td><td>Reset password with token</td><td>Public</td></tr>
-              <tr><td>POST</td><td>/api/users/change-password</td><td>Change password</td><td>Bearer Token</td></tr>
-              <tr><td>GET</td><td>/api/users/token/verify</td><td>Verify token</td><td>Bearer Token</td></tr>
-              <tr><td>POST</td><td>/api/users/logout</td><td>Logout</td><td>Bearer Token</td></tr>
-            </tbody>
-          </table>
+---
 
-          <h3>User Management Endpoints</h3>
-          <table>
-            <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-            <tbody>
-              <tr><td>GET</td><td>/api/users/me</td><td>Get current user info</td><td>Bearer Token</td></tr>
-              <tr><td>GET</td><td>/api/users/me/profile</td><td>Get user profile</td><td>Bearer Token</td></tr>
-              <tr><td>PUT</td><td>/api/users/me/profile</td><td>Update profile</td><td>Bearer Token</td></tr>
-              <tr><td>GET</td><td>/api/users/me/role</td><td>Get user role</td><td>Bearer Token</td></tr>
-              <tr><td>GET</td><td>/api/users/customer/dashboard</td><td>Customer dashboard</td><td>Bearer Token (Customer)</td></tr>
-              <tr><td>GET</td><td>/api/users/vendor/dashboard</td><td>Vendor dashboard</td><td>Bearer Token (Vendor)</td></tr>
-            </tbody>
-          </table>
+## Environment variables (what each variable means)
 
-          <h3>Salon Discovery Endpoints</h3>
-          <table>
-            <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-            <tbody>
-              <tr><td>GET</td><td>/api/salons/</td><td>Browse salons with filters</td><td>Optional</td></tr>
-              <tr><td>GET</td><td>/api/salons/featured</td><td>Get featured salons</td><td>Optional</td></tr>
-              <tr><td>GET</td><td>/api/salons/nearby</td><td>Get nearby salons</td><td>Optional</td></tr>
-              <tr><td>GET</td><td>/api/salons/{salon_id}</td><td>Salon details</td><td>Optional</td></tr>
-              <tr><td>POST</td><td>/api/salons/</td><td>Create new salon</td><td>Bearer Token (Vendor)</td></tr>
-              <tr><td>GET</td><td>/api/salons/{salon_id}/services</td><td>Get services</td><td>Public</td></tr>
-              <tr><td>POST</td><td>/api/salons/{salon_id}/services</td><td>Add service to salon</td><td>Bearer Token (Owner)</td></tr>
-              <tr><td>GET</td><td>/api/salons/{salon_id}/reviews</td><td>Get salon reviews</td><td>Public</td></tr>
-              <tr><td>POST</td><td>/api/salons/{salon_id}/reviews</td><td>Create review</td><td>Bearer Token (Customer)</td></tr>
-            </tbody>
-          </table>
+Provide these in .env for local development or in your hosting environment (Render, Heroku, etc).
 
-          <h3>Favorites Management</h3>
-          <table>
-            <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-            <tbody>
-              <tr><td>GET</td><td>/api/users/favorites</td><td>Get favorite salons</td><td>Bearer Token</td></tr>
-              <tr><td>POST</td><td>/api/users/favorites/{salon_id}</td><td>Add to favorites</td><td>Bearer Token</td></tr>
-              <tr><td>DELETE</td><td>/api/users/favorites/{salon_id}</td><td>Remove from favorites</td><td>Bearer Token</td></tr>
-            </tbody>
-          </table>
+| Variable | Required? | Purpose / Notes |
+|---|:---:|---|
+| DEBUG | recommended | True/False to enable extra logging and dev features |
+| SECRET_KEY | yes | Used for JWT signing and other security primitives — keep secret |
+| DATABASE_URL | yes | PostgreSQL connection string (e.g., postgresql://user:pass@host:5432/dbname) |
+| CLOUDINARY_CLOUD_NAME | yes for uploads | Cloudinary cloud name |
+| CLOUDINARY_API_KEY | yes for uploads | Cloudinary API key |
+| CLOUDINARY_API_SECRET | yes for uploads | Cloudinary API secret |
+| EMAIL_HOST | yes if email used | SMTP host for sending emails |
+| EMAIL_PORT | yes if email used | SMTP port |
+| EMAIL_HOST_USER | yes if email used | SMTP username |
+| EMAIL_HOST_PASSWORD | yes if email used | SMTP password or app-specific password |
+| DEFAULT_FROM_EMAIL | recommended | From address for transactional emails |
+| PAYSTACK_SECRET_KEY | yes for payments | Secret key for Paystack API calls |
+| PAYSTACK_PUBLIC_KEY | recommended | Public key for client integrations |
+| PAYSTACK_BASE_URL | recommended | Base URL for Paystack API (default: https://api.paystack.co) |
+| ACCESS_TOKEN_EXPIRE_MINUTES | recommended | Access token lifetime in minutes |
 
-          <h3>Booking Management</h3>
-          <table>
-            <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-            <tbody>
-              <tr><td>POST</td><td>/api/bookings/</td><td>Create new booking</td><td>Bearer Token (Customer)</td></tr>
-              <tr><td>GET</td><td>/api/bookings/</td><td>Get user bookings</td><td>Bearer Token</td></tr>
-              <tr><td>GET</td><td>/api/bookings/{booking_id}</td><td>Get booking details</td><td>Bearer Token</td></tr>
-              <tr><td>PUT</td><td>/api/bookings/{booking_id}</td><td>Update booking</td><td>Bearer Token</td></tr>
-              <tr><td>GET</td><td>/api/bookings/vendor/bookings</td><td>Get vendor bookings</td><td>Bearer Token (Vendor)</td></tr>
-            </tbody>
-          </table>
+---
 
-          <h3>Payment Endpoints</h3>
-          <table>
-            <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-            <tbody>
-              <tr><td>POST</td><td>/api/payments/initiate</td><td>Initiate payment</td><td>Bearer Token</td></tr>
-              <tr><td>POST</td><td>/api/payments/verify</td><td>Verify payment</td><td>Bearer Token</td></tr>
-              <tr><td>GET</td><td>/api/payments/{payment_id}</td><td>Payment details</td><td>Bearer Token</td></tr>
-              <tr><td>POST</td><td>/api/payments/webhook/paystack</td><td>Paystack webhook</td><td>Paystack Signature</td></tr>
-            </tbody>
-          </table>
+## How to set up (high-level, non-code steps)
 
-          <h2>Authentication</h2>
-          <p>Use JWT tokens in the Authorization header for protected endpoints:</p>
-          <pre class="code">Authorization: Bearer &lt;your-jwt-token&gt;</pre>
-          <p><strong>Token types</strong>: Access Token (short-lived), Refresh Token (long-lived)</p>
+1. Prepare a runtime environment with Python 3.10+ and create an isolated virtual environment.
+2. Install project dependencies from the provided dependency list (requirements.txt).
+3. Create and populate the environment variables (.env). Ensure DATABASE_URL points to a running Postgres instance.
+4. Start the database and apply migrations (recommended: use Alembic in production).
+5. Start the application server (development mode should enable hot reload). Application exposes interactive API docs on /docs and health on /health.
+6. Use the interactive docs to try endpoints and understand request/response shapes.
 
-          <h2>Database Models</h2>
-          <ul>
-            <li><strong>User</strong>, <strong>UserProfile</strong>, <strong>PasswordReset</strong></li>
-            <li><strong>Salon</strong>, <strong>Service</strong>, <strong>SalonImage</strong>, <strong>Review</strong></li>
-            <li><strong>Booking</strong>, <strong>BookingItem</strong></li>
-            <li><strong>Payment</strong></li>
-          </ul>
+Note: exact CLI commands are intentionally not shown here; use the standard Python tooling for your environment (pip, python, uvicorn, alembic, etc.).
 
-          <h2>Running the Application</h2>
-          <div class="pre">
-            <pre class="code"># Development
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+---
 
-# Production
-uvicorn app.main:app --host 0.0.0.0 --port 8000</pre>
-          </div>
+## API surface — conceptual endpoint reference
 
-          <h2>Access Documentation</h2>
-          <p>Swagger UI: <a href="http://localhost:8000/docs" target="_blank" rel="noopener">http://localhost:8000/docs</a></p>
-          <p>ReDoc: <a href="http://localhost:8000/redoc" target="_blank" rel="noopener">http://localhost:8000/redoc</a></p>
+Below are grouped lists of important endpoints and what they do. They are presented as tables for quick reference.
 
-          <h2>Testing</h2>
-          <p>Use Swagger UI while running the app. Example curl calls:</p>
+Authentication Endpoints
 
-          <h3>User Registration</h3>
-          <pre class="code">curl -X POST "http://localhost:8000/api/users/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123",
-    "first_name": "John",
-    "last_name": "Doe",
-    "role": "customer"
-  }'</pre>
+| Method | Path | Purpose | Auth required |
+|---:|---|---|---|
+| POST | /api/users/register | Register a new user (customer, vendor, admin) | Public |
+| POST | /api/users/login | Log user in and receive tokens | Public |
+| POST | /api/users/forgot-password | Request a password reset link | Public |
+| POST | /api/users/reset-password | Reset password using token | Public |
+| POST | /api/users/change-password | Change password for authenticated user | Bearer Token |
+| GET | /api/users/token/verify | Validate an access/refresh token | Bearer Token |
+| POST | /api/users/logout | Invalidate user session/tokens | Bearer Token |
 
-          <h3>User Login</h3>
-          <pre class="code">curl -X POST "http://localhost:8000/api/users/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123"
-  }'</pre>
+User Management Endpoints
 
-          <h3>Browse Salons</h3>
-          <pre class="code">curl -X GET "http://localhost:8000/api/salons/?city=Lagos&min_rating=4.0"</pre>
+| Method | Path | Purpose | Auth required |
+|---:|---|---|---|
+| GET | /api/users/me | Get current user info | Bearer Token |
+| GET | /api/users/me/profile | Get current user's profile | Bearer Token |
+| PUT | /api/users/me/profile | Update profile & image upload | Bearer Token |
+| GET | /api/users/me/role | Get current user role | Bearer Token |
+| GET | /api/users/customer/dashboard | Customer-specific dashboard | Bearer Token (Customer) |
+| GET | /api/users/vendor/dashboard | Vendor-specific dashboard | Bearer Token (Vendor) |
 
-          <h2>Deployment</h2>
-          <h3>Render.com Deployment (recommended)</h3>
-          <ol>
-            <li>Connect GitHub repo to Render.</li>
-            <li>Set environment variables in Render dashboard.</li>
-            <li>Deploy automatically from main branch.</li>
-          </ol>
-          <p>Consider using Alembic for production database migrations instead of auto-create.</p>
+Salon Discovery & Management
 
-          <h2>Troubleshooting</h2>
-          <h3>Common Issues</h3>
-          <ul>
-            <li><strong>Database connection</strong> — check DATABASE_URL, credentials, Postgres running.</li>
-            <li><strong>Authentication</strong> — verify SECRET_KEY and token expiration settings.</li>
-            <li><strong>File uploads</strong> — verify Cloudinary config and file size limits.</li>
-            <li><strong>Payments</strong> — verify Paystack keys and webhook URL; ensure SSL in production.</li>
-          </ul>
+| Method | Path | Purpose | Auth required |
+|---:|---|---|---|
+| GET | /api/salons/ | List salons with filters (city, rating, services) | Optional |
+| GET | /api/salons/featured | Featured salons | Optional |
+| GET | /api/salons/nearby | Nearby salons based on coordinates | Optional |
+| GET | /api/salons/{salon_id} | Salon detail | Optional |
+| POST | /api/salons/ | Create a salon (vendors) | Bearer Token (Vendor) |
+| GET | /api/salons/{salon_id}/services | List services for a salon | Public |
+| POST | /api/salons/{salon_id}/services | Add a service (owner) | Bearer Token (Owner) |
+| GET | /api/salons/{salon_id}/reviews | List reviews | Public |
+| POST | /api/salons/{salon_id}/reviews | Create a review (customers) | Bearer Token (Customer) |
 
-          <h2>Support</h2>
-          <p>Check interactive docs at <a href="https://salonconnect-qzne.onrender.com/docs" target="_blank" rel="noopener">/docs</a> or the alternative base docs linked above. Review logs for errors and verify environment configuration.</p>
+Booking Management
 
-        </section>
-      </div>
+| Method | Path | Purpose | Auth required |
+|---:|---|---|---|
+| POST | /api/bookings/ | Create a booking (possibly multi-service) | Bearer Token (Customer) |
+| GET | /api/bookings/ | List bookings for current user | Bearer Token |
+| GET | /api/bookings/{booking_id} | Booking detail | Bearer Token |
+| PUT | /api/bookings/{booking_id} | Update booking details or status | Bearer Token |
+| GET | /api/bookings/vendor/bookings | List bookings for vendor | Bearer Token (Vendor) |
 
-      <aside>
-        <div class="card">
-          <h3>Quick Links</h3>
-          <a href="https://salonconnect-qzne.onrender.com" target="_blank" rel="noopener">Live API (salonconnect-qzne)</a>
-          <a href="https://salonconnect-qzne.onrender.com/docs" target="_blank" rel="noopener">Swagger UI (salonconnect-qzne)</a>
-          <a href="https://salonconnect-qzne.onrender.com/health" target="_blank" rel="noopener">Health Check</a>
-          <hr style="border:none;height:1px;background:linear-gradient(90deg, rgba(79,70,229,0.06), transparent);margin:10px 0;">
-          <h3>HTTP Status Codes</h3>
-          <ul style="color:var(--muted); margin:6px 0;">
-            <li>200 - Success</li>
-            <li>201 - Created</li>
-            <li>400 - Bad Request</li>
-            <li>401 - Unauthorized</li>
-            <li>403 - Forbidden</li>
-            <li>404 - Not Found</li>
-            <li>422 - Validation Error</li>
-            <li>500 - Internal Server Error</li>
-          </ul>
-          <hr style="border:none;height:1px;background:linear-gradient(90deg, rgba(79,70,229,0.06), transparent);margin:10px 0;">
-          <h3>Quick Start</h3>
-          <ol style="margin:6px 0 0 18px; color:var(--muted);">
-            <li>Register user (POST /api/users/register)</li>
-            <li>Login and obtain token (POST /api/users/login)</li>
-            <li>Set Authorization header: <code>Authorization: Bearer &lt;token&gt;</code></li>
-            <li>Browse salons and create bookings</li>
-            <li>Initiate payments and verify via Paystack</li>
-          </ol>
-        </div>
+Payments & Webhooks
 
-        <div class="card" style="margin-top:14px;">
-          <h3>Demo Flows</h3>
-          <p style="color:var(--muted);font-size:14px;">
-            <strong>Vendor</strong>: Register as vendor → Login → Create salon → Add services → Manage bookings → View analytics
-            <br><br>
-            <strong>Customer</strong>: Register → Login → Browse salons → Create booking → Process payment
-          </p>
-        </div>
+| Method | Path | Purpose | Auth required |
+|---:|---|---|---|
+| POST | /api/payments/initiate | Start a payment flow | Bearer Token |
+| POST | /api/payments/verify | Verify a payment transaction | Bearer Token |
+| GET | /api/payments/{payment_id} | Get payment details | Bearer Token |
+| POST | /api/payments/webhook/paystack | Endpoint for Paystack webhook events | Paystack Signature |
 
-        <div class="card" style="margin-top:14px;">
-          <h3>Technical Highlights</h3>
-          <ul style="color:var(--muted);">
-            <li>FastAPI with automatic Swagger documentation</li>
-            <li>PostgreSQL + SQLAlchemy</li>
-            <li>JWT authentication and role-based access control</li>
-            <li>Cloudinary for images</li>
-            <li>Paystack for payments</li>
-          </ul>
-        </div>
-      </aside>
-    </div>
+Favorites
 
-    <div class="footer">
-      <div style="font-weight:700;color:var(--primary);">Salon Connect API</div>
-      <div style="margin-top:6px;">Building the future of salon bookings · &nbsp;<a href="https://salonconnect-qzne.onrender.com" target="_blank" rel="noopener">Visit the API</a></div>
-    </div>
+| Method | Path | Purpose | Auth required |
+|---:|---|---|---|
+| GET | /api/users/favorites | List favorite salons for user | Bearer Token |
+| POST | /api/users/favorites/{salon_id} | Add a salon to favorites | Bearer Token |
+| DELETE | /api/users/favorites/{salon_id} | Remove a salon from favorites | Bearer Token |
 
-  </div>
-</body>
-</html>
+Authentication notes:
+- Use Authorization: Bearer <access_token> header for protected endpoints.
+- Tokens: short-lived Access Token and longer-lived Refresh Token patterns are supported.
+
+---
+
+## Data models — conceptual summary
+
+These database models represent the primary domain entities. Each model maps to a relational table and includes relationships (foreign keys) where needed.
+
+| Model | Purpose |
+|---|---|
+| User | Core identity record (email, password hash, role, last login metadata) |
+| UserProfile | Extended profile info: first_name, last_name, phone, bio, profile_image_url |
+| PasswordReset | One-time tokens for password reset workflow |
+| Salon | Salon entity: name, address, coordinates, owner reference, metadata |
+| Service | Salon services: name, description, duration, price, salon reference |
+| SalonImage | Image references for a salon (Cloudinary URLs) |
+| Review | Customer reviews: rating, text, user reference, salon reference |
+| Booking | Booking master record: user, salon, date/time, status enum |
+| BookingItem | Individual service entries within a booking (service, price, duration) |
+| Payment | Payment transactions: gateway id, status, amount, booking reference |
+
+---
+
+## Testing & validation
+
+- The application exposes interactive API documentation (Swagger UI) — use that to review and exercise endpoints and sample payload shapes.
+- Validate major flows manually first (registration → login → create booking → payment) before automating tests.
+- Add unit tests around service layer functions (business logic), and integration tests around critical routes, especially payment webhook handling and booking lifecycle transitions.
+- Use staging credentials for third-party services (Cloudinary, Paystack, SMTP) during tests to avoid accidental production transactions.
+
+---
+
+## Deployment guidance (high level)
+
+Recommended host: Render.com (or similar)
+- Connect the GitHub repository to Render and set environment variables in the Render dashboard.
+- Use a production-grade database (managed Postgres) with migrations applied via Alembic.
+- Ensure webhook endpoints are accessible and served via HTTPS (required by Paystack).
+- Monitor logs and set up error reporting/alerting for payment and booking-critical flows.
+
+---
+
+## Troubleshooting — common issues
+
+- Database connection failures: verify DATABASE_URL and network connectivity; ensure the DB accepts connections from your host.
+- Authentication or token problems: confirm SECRET_KEY, correct token expiry settings and clock sync on servers.
+- File uploads failing: check Cloudinary credentials and allowed file sizes/types.
+- Payments failing: verify Paystack keys, webhook URL, and signature verification logic; ensure SSL for webhook endpoints.
+- Migrations vs auto-create: do not rely on auto-create in production; use migrations (Alembic) to manage schema safely.
+
+---
+
+## Security considerations
+
+- Keep SECRET_KEY and third-party service keys secret (do not check them into source control).
+- Use HTTPS in production and enforce secure cookies wherever applicable.
+- Validate and sanitize all external inputs; employ rate limiting on auth endpoints.
+- Implement idempotency and replay protection for payment-related endpoints and webhook handlers.
+
+---
+
+## Contributing
+
+- Read the project structure and module responsibilities above to find the right place to work.
+- Implement features in the services layer, expose them via routes, and ensure Pydantic schemas validate input/response shapes.
+- Add tests for any new business logic and update docs (OpenAPI metadata is generated from routes and schemas).
+- For database changes, create migration scripts (Alembic) rather than relying on table auto-creation in production.
+
+---
+
+## Support & contact
+
+If you need help:
+- Check the interactive API docs at /docs on your running instance for exact request/response shapes.
+- Inspect server logs for error stack traces and failing requests (especially for webhooks).
+- For payment issues, use Paystack dashboard and logs to trace transactions.
+
+---
+
+## License
+
+Specify your preferred license (e.g., MIT, Apache 2.0) in a LICENSE file to allow others to contribute and reuse the project appropriately.
+
+---
+
+Thank you for using Salon Connect. If you'd like, I can:
+- Convert this into a nicely formatted README.md file in your repository.
+- Produce a CONTRIBUTING.md with step-by-step development workflow.
+- Generate a concise quick-start sheet with exact commands (separate file) for developers who want explicit CLI instructions.
+Which would you like next?
