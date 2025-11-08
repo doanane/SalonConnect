@@ -7,8 +7,9 @@ load_dotenv()
 class Settings(BaseSettings):
     # App
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "fallback-secret-key-for-development")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
@@ -21,7 +22,7 @@ class Settings(BaseSettings):
     # Paystack
     PAYSTACK_SECRET_KEY: str = os.getenv("PAYSTACK_SECRET_KEY", "")
     PAYSTACK_PUBLIC_KEY: str = os.getenv("PAYSTACK_PUBLIC_KEY", "")
-    PAYSTACK_BASE_URL: str = os.getenv("PAYSTACK_BASE_URL", "")
+    PAYSTACK_BASE_URL: str = os.getenv("PAYSTACK_BASE_URL", "https://api.paystack.co")
     
     # Email Configuration
     SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -35,5 +36,14 @@ class Settings(BaseSettings):
     
     class Config:
         case_sensitive = True
+        env_file = ".env"
 
+# Create settings instance
 settings = Settings()
+
+# Print configuration for debugging
+print(f"🔧 [CONFIG] DEBUG: {settings.DEBUG}")
+print(f"🔧 [CONFIG] DATABASE_URL: {settings.DATABASE_URL[:50]}...")
+print(f"🔧 [CONFIG] SMTP_HOST: {settings.SMTP_HOST}")
+print(f"🔧 [CONFIG] SMTP_USER: {settings.SMTP_USER}")
+print(f"🔧 [CONFIG] FRONTEND_URL: {settings.FRONTEND_URL}")
