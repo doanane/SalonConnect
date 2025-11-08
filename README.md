@@ -95,8 +95,8 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-- The interactive API docs are at: http://localhost:8000/docs
-- Health endpoint: http://localhost:8000/health
+- The interactive API docs are at: salonconnect-qzne.onrender.com/docs
+- Health endpoint: salonconnect-qzne.onrender.com/health
 
 Note: In production I recommend using a production ASGI server, managed Postgres, and Alembic migrations.
 
@@ -163,7 +163,7 @@ Authorization: Bearer <access_token>
 
 Register a user:
 ```bash
-curl -X POST "http://localhost:8000/api/users/register" \
+curl -X POST "salonconnect-qzne.onrender.com/api/users/register" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -176,7 +176,7 @@ curl -X POST "http://localhost:8000/api/users/register" \
 
 Login:
 ```bash
-curl -X POST "http://localhost:8000/api/users/login" \
+curl -X POST "salonconnect-qzne.onrender.com/api/users/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -186,7 +186,7 @@ curl -X POST "http://localhost:8000/api/users/login" \
 
 Browse salons:
 ```bash
-curl -X GET "http://localhost:8000/api/salons/?city=Lagos&min_rating=4.0"
+curl -X GET "salonconnect-qzne.onrender.com/api/salons/?city=Lagos&min_rating=4.0"
 ```
 
 ---

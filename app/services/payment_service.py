@@ -7,6 +7,7 @@ from datetime import datetime
 from app.models.payment import Payment, PaymentStatus, PaymentMethod
 from app.models.booking import Booking, BookingStatus
 from app.core.config import settings
+from app.services.email import EmailService
 
 class PaymentService:
     @staticmethod
@@ -19,7 +20,7 @@ class PaymentService:
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found")
         
-        
+        # Create payment record
         payment_reference = str(uuid.uuid4())
         payment = Payment(
             booking_id=booking_id,
@@ -31,7 +32,7 @@ class PaymentService:
         db.add(payment)
         db.commit()
         
-        
+        # Initialize Paystack payment
         try:
             headers = {
                 "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -42,7 +43,7 @@ class PaymentService:
                 "email": booking.customer.email,
                 "amount": int(booking.total_amount * 100),
                 "reference": payment_reference,
-                "callback_url": "http://localhost:3000/payment/success",
+                "callback_url": f"{settings.FRONTEND_URL}/payment/success",
                 "metadata": {
                     "booking_id": booking_id,
                     "customer_id": customer_id
@@ -75,7 +76,7 @@ class PaymentService:
         if not payment:
             raise HTTPException(status_code=404, detail="Payment not found")
         
-        
+        # Verify payment with Paystack
         try:
             headers = {
                 "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
@@ -94,11 +95,19 @@ class PaymentService:
                     payment.paystack_reference = data['data']['reference']
                     payment.paid_at = datetime.now()
                     
-                    
+                    # Update booking status
                     payment.booking.status = BookingStatus.CONFIRMED
                     
                     db.commit()
                     db.refresh(payment)
+                    
+                    # Send payment confirmation email
+                    EmailService.send_payment_confirmation(
+                        payment.booking.customer, 
+                        payment, 
+                        payment.booking
+                    )
+                    
                     return payment
                 else:
                     payment.status = PaymentStatus.FAILED

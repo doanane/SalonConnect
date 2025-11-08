@@ -8,6 +8,7 @@ from app.models.booking import Booking, BookingItem, BookingStatus
 from app.models.salon import Service, Salon
 from app.models.user import User
 from app.schemas.booking import BookingCreate, BookingUpdate
+from app.services.email import EmailService
 
 class BookingService:
     @staticmethod
@@ -75,7 +76,16 @@ class BookingService:
             joinedload(Booking.items).joinedload(BookingItem.service)
         ).filter(Booking.id == booking.id).first()
         
+        # Send booking confirmation email to customer
+        EmailService.send_booking_confirmation(booking.customer, booking, salon)
+        
+        # Send booking notification to vendor
+        vendor = db.query(User).filter(User.id == salon.owner_id).first()
+        if vendor:
+            EmailService.send_booking_notification_to_vendor(vendor, booking, booking.customer, salon)
+        
         return booking
+
 
     @staticmethod
     def get_booking_by_id(db: Session, booking_id: int):
