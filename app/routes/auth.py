@@ -534,3 +534,57 @@ def verify_token_endpoint(credentials: HTTPAuthorizationCredentials = Depends(se
 def logout(current_user: dict = Depends(get_current_user)):
     """Logout user (client should remove tokens)"""
     return {"message": "Successfully logged out"}
+@router.get("/debug-env")
+def debug_environment():
+    """Debug environment variables on Render"""
+    import os
+    
+    env_vars = {
+        "SMTP_HOST": os.getenv("SMTP_HOST"),
+        "SMTP_PORT": os.getenv("SMTP_PORT"), 
+        "SMTP_USER": os.getenv("SMTP_USER"),
+        "FROM_EMAIL": os.getenv("FROM_EMAIL"),
+        "SMTP_PASS_SET": bool(os.getenv("SMTP_PASS")),
+        "SMTP_PASS_LENGTH": len(os.getenv("SMTP_PASS", "")),
+        "DEBUG": os.getenv("DEBUG"),
+        "ENVIRONMENT": os.getenv("ENVIRONMENT"),
+        "RENDER": os.getenv("RENDER"),
+        "RENDER_EXTERNAL_URL": os.getenv("RENDER_EXTERNAL_URL")
+    }
+    
+    print(f"🔧 [ENV DEBUG] Environment variables: {env_vars}")
+    
+    return env_vars
+
+@router.get("/debug-email")
+def debug_email_config():
+    """Debug endpoint to check email configuration"""
+    import os
+    from app.core.config import settings
+    
+    config_info = {
+        "SMTP_HOST": settings.SMTP_HOST,
+        "SMTP_PORT": settings.SMTP_PORT,
+        "SMTP_USER": settings.SMTP_USER,
+        "FROM_EMAIL": settings.FROM_EMAIL,
+        "SMTP_PASS_SET": bool(settings.SMTP_PASS),
+        "DEBUG": settings.DEBUG,
+        "ENVIRONMENT": os.getenv("ENVIRONMENT", "unknown")
+    }
+    
+    print(f"🔧 [DEBUG] Email Configuration: {config_info}")
+    
+    # Test SMTP connection
+    try:
+        import smtplib
+        print(f"🔧 [DEBUG] Testing SMTP connection to {settings.SMTP_HOST}:{settings.SMTP_PORT}")
+        with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            print(f"✅ [DEBUG] SMTP connection successful")
+            server.login(settings.SMTP_USER, settings.SMTP_PASS)
+            print(f"✅ [DEBUG] SMTP login successful")
+            config_info["smtp_test"] = "SUCCESS"
+    except Exception as e:
+        print(f"❌ [DEBUG] SMTP test failed: {str(e)}")
+        config_info["smtp_test"] = f"FAILED: {str(e)}"
+    
+    return config_info
