@@ -6,14 +6,23 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from app.core.config import settings
-from sqlalchemy.orm import Session
-from app.models.user import User
+import os
 
 class EmailService:
     @staticmethod
     def send_email(to_email: str, subject: str, html_content: str) -> bool:
-        """Send email using SMTP"""
+        """Send email using SMTP with comprehensive debugging"""
         try:
+            print(f"🔧 [EMAIL SERVICE] Starting email send to: {to_email}")
+            print(f"🔧 [EMAIL SERVICE] SMTP Config - Host: {settings.SMTP_HOST}, Port: {settings.SMTP_PORT}")
+            print(f"🔧 [EMAIL SERVICE] SMTP User: {settings.SMTP_USER}")
+            print(f"🔧 [EMAIL SERVICE] From Email: {settings.FROM_EMAIL}")
+            
+            # Validate SMTP configuration
+            if not all([settings.SMTP_HOST, settings.SMTP_PORT, settings.SMTP_USER, settings.SMTP_PASS]):
+                print("❌ [EMAIL SERVICE] Missing SMTP configuration")
+                return False
+
             # Create message
             msg = MIMEMultipart()
             msg['From'] = settings.FROM_EMAIL
@@ -23,21 +32,33 @@ class EmailService:
             # Attach HTML content
             msg.attach(MIMEText(html_content, 'html'))
             
+            print(f"🔧 [EMAIL SERVICE] Attempting SMTP connection...")
+            
             # Send email
             with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+                print(f"🔧 [EMAIL SERVICE] SMTP connection established")
                 server.login(settings.SMTP_USER, settings.SMTP_PASS)
+                print(f"🔧 [EMAIL SERVICE] SMTP login successful")
                 server.send_message(msg)
+                print(f"🔧 [EMAIL SERVICE] Message sent successfully")
             
-            print(f"✅ Email sent successfully to: {to_email}")
+            print(f"✅ [EMAIL SERVICE] Email sent successfully to: {to_email}")
             return True
             
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"❌ [EMAIL SERVICE] SMTP Authentication failed: {str(e)}")
+            print(f"❌ [EMAIL SERVICE] Check your email password/app password")
+            return False
+        except smtplib.SMTPException as e:
+            print(f"❌ [EMAIL SERVICE] SMTP Error: {str(e)}")
+            return False
         except Exception as e:
-            print(f"❌ Error sending email to {to_email}: {str(e)}")
+            print(f"❌ [EMAIL SERVICE] Unexpected error: {str(e)}")
             return False
 
     @staticmethod
     def generate_verification_token(email: str) -> str:
-        """Generate JWT token for email verification - ensure it's string"""
+        """Generate JWT token for email verification"""
         payload = {
             'email': email,
             'exp': datetime.utcnow() + timedelta(hours=24),
@@ -51,7 +72,7 @@ class EmailService:
 
     @staticmethod
     def generate_reset_token(email: str) -> str:
-        """Generate JWT token for password reset - ensure it's string"""
+        """Generate JWT token for password reset"""
         payload = {
             'email': email,
             'exp': datetime.utcnow() + timedelta(hours=1),
@@ -91,7 +112,7 @@ class EmailService:
         return ''.join(random.choices(string.digits, k=6))
 
     @staticmethod
-    def send_verification_email(user: User, verification_url: str):
+    def send_verification_email(user, verification_url: str):
         """Send email verification email"""
         subject = "Verify Your Email - Salon Connect"
         
@@ -114,7 +135,7 @@ class EmailService:
                     <h1>Welcome to Salon Connect! 🎉</h1>
                 </div>
                 <div class="content">
-                    <h2>Hello {user.first_name or 'there'},</h2>
+                    <h2>Hello {getattr(user, 'first_name', 'there')},</h2>
                     <p>Thank you for registering with Salon Connect. To complete your registration and start booking appointments, please verify your email address by clicking the button below:</p>
                     
                     <div style="text-align: center;">
@@ -134,10 +155,12 @@ class EmailService:
         </html>
         """
         
-        return EmailService.send_email(user.email, subject, html_content)
+        print(f"📧 [EMAIL SERVICE] Sending verification email to: {getattr(user, 'email', 'unknown')}")
+        print(f"📧 [EMAIL SERVICE] Verification URL: {verification_url}")
+        return EmailService.send_email(getattr(user, 'email', ''), subject, html_content)
 
     @staticmethod
-    def send_password_reset_email(user: User, reset_url: str):
+    def send_password_reset_email(user, reset_url: str):
         """Send password reset email"""
         subject = "Reset Your Password - Salon Connect"
         
@@ -160,7 +183,7 @@ class EmailService:
                     <h1>Password Reset Request</h1>
                 </div>
                 <div class="content">
-                    <h2>Hello {user.first_name or 'there'},</h2>
+                    <h2>Hello {getattr(user, 'first_name', 'there')},</h2>
                     <p>We received a request to reset your password for your Salon Connect account. Click the button below to create a new password:</p>
                     
                     <div style="text-align: center;">
@@ -180,10 +203,12 @@ class EmailService:
         </html>
         """
         
-        return EmailService.send_email(user.email, subject, html_content)
+        print(f"📧 [EMAIL SERVICE] Sending password reset email to: {getattr(user, 'email', 'unknown')}")
+        print(f"📧 [EMAIL SERVICE] Reset URL: {reset_url}")
+        return EmailService.send_email(getattr(user, 'email', ''), subject, html_content)
 
     @staticmethod
-    def send_otp_email(user: User, otp: str):
+    def send_otp_email(user, otp: str):
         """Send OTP for login"""
         subject = "Your Login OTP - Salon Connect"
         
@@ -206,7 +231,7 @@ class EmailService:
                     <h1>Your Login OTP</h1>
                 </div>
                 <div class="content">
-                    <h2>Hello {user.first_name or 'there'},</h2>
+                    <h2>Hello {getattr(user, 'first_name', 'there')},</h2>
                     <p>Use the following OTP to log in to your Salon Connect account:</p>
                     
                     <div class="otp-code">{otp}</div>
@@ -224,4 +249,6 @@ class EmailService:
         </html>
         """
         
-        return EmailService.send_email(user.email, subject, html_content)
+        print(f"📧 [EMAIL SERVICE] Sending OTP email to: {getattr(user, 'email', 'unknown')}")
+        print(f"📧 [EMAIL SERVICE] OTP: {otp}")
+        return EmailService.send_email(getattr(user, 'email', ''), subject, html_content)
