@@ -38,6 +38,8 @@ class User(Base):
     salons = relationship("Salon", back_populates="owner")
     bookings = relationship("Booking", back_populates="customer")
     favorite_salons = relationship("Salon", secondary=user_favorites, backref="favorited_by_users")
+    otps = relationship("UserOTP", back_populates="user")
+    password_resets = relationship("PasswordReset", back_populates="user")
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
@@ -64,7 +66,37 @@ class PasswordReset(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    token = Column(String(255), nullable=False)
+    token = Column(Text, nullable=False)  # CHANGED FROM String(255) to Text for longer tokens
     expires_at = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", back_populates="password_resets")
+
+class PendingUser(Base):
+    """Store user data before email verification"""
+    __tablename__ = "pending_users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    phone_number = Column(String(20), unique=True, index=True)
+    password = Column(String(255), nullable=False)
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+    role = Column(Enum(UserRole), default=UserRole.CUSTOMER)
+    verification_token = Column(Text, nullable=False)  # CHANGED FROM String(255) to Text
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class UserOTP(Base):
+    """Store OTP for login"""
+    __tablename__ = "user_otps"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    otp = Column(String(6), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", back_populates="otps")
