@@ -17,6 +17,7 @@ class EmailService:
             print(f"🔧 [EMAIL SERVICE] SMTP Config - Host: {settings.SMTP_HOST}, Port: {settings.SMTP_PORT}")
             print(f"🔧 [EMAIL SERVICE] SMTP User: {settings.SMTP_USER}")
             print(f"🔧 [EMAIL SERVICE] From Email: {settings.FROM_EMAIL}")
+            print(f"🔧 [EMAIL SERVICE] Running on Render: {'RENDER' in os.environ}")
             
             # Validate SMTP configuration
             if not all([settings.SMTP_HOST, settings.SMTP_PORT, settings.SMTP_USER, settings.SMTP_PASS]):
@@ -34,26 +35,44 @@ class EmailService:
             
             print(f"🔧 [EMAIL SERVICE] Attempting SMTP connection...")
             
-            # Send email
-            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-                print(f"🔧 [EMAIL SERVICE] SMTP connection established")
-                server.login(settings.SMTP_USER, settings.SMTP_PASS)
-                print(f"🔧 [EMAIL SERVICE] SMTP login successful")
-                server.send_message(msg)
-                print(f"🔧 [EMAIL SERVICE] Message sent successfully")
+            # Try different connection methods
+            try:
+                # Method 1: Direct SSL connection (preferred)
+                with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=30) as server:
+                    print(f"✅ [EMAIL SERVICE] SMTP SSL connection established")
+                    server.login(settings.SMTP_USER, settings.SMTP_PASS)
+                    print(f"✅ [EMAIL SERVICE] SMTP login successful")
+                    server.send_message(msg)
+                    print(f"✅ [EMAIL SERVICE] Message sent successfully")
+                    
+            except Exception as ssl_error:
+                print(f"⚠️ [EMAIL SERVICE] SSL connection failed: {ssl_error}")
+                print(f"🔧 [EMAIL SERVICE] Trying TLS connection...")
+                
+                # Method 2: TLS connection
+                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=30) as server:
+                    server.starttls()
+                    print(f"✅ [EMAIL SERVICE] TLS connection established")
+                    server.login(settings.SMTP_USER, settings.SMTP_PASS)
+                    print(f"✅ [EMAIL SERVICE] SMTP login successful")
+                    server.send_message(msg)
+                    print(f"✅ [EMAIL SERVICE] Message sent successfully")
             
             print(f"✅ [EMAIL SERVICE] Email sent successfully to: {to_email}")
             return True
             
         except smtplib.SMTPAuthenticationError as e:
             print(f"❌ [EMAIL SERVICE] SMTP Authentication failed: {str(e)}")
-            print(f"❌ [EMAIL SERVICE] Check your email password/app password")
+            print(f"❌ [EMAIL SERVICE] This usually means:")
+            print(f"❌ [EMAIL SERVICE] 1. Wrong email password")
+            print(f"❌ [EMAIL SERVICE] 2. 2FA is enabled but no app password is used")
+            print(f"❌ [EMAIL SERVICE] 3. Less secure apps access is disabled")
             return False
-        except smtplib.SMTPException as e:
-            print(f"❌ [EMAIL SERVICE] SMTP Error: {str(e)}")
-            return False
+            
         except Exception as e:
-            print(f"❌ [EMAIL SERVICE] Unexpected error: {str(e)}")
+            print(f"❌ [EMAIL SERVICE] All connection methods failed: {str(e)}")
+            import traceback
+            print(f"❌ [EMAIL SERVICE] Traceback: {traceback.format_exc()}")
             return False
 
     @staticmethod
