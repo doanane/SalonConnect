@@ -439,14 +439,14 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000</pre>
           </div>
 
           <h2>Access Documentation</h2>
-          <p>Swagger UI: <a href="http://localhost:8000/docs" target="_blank" rel="noopener">http://localhost:8000/docs</a></p>
-          <p>ReDoc: <a href="http://localhost:8000/redoc" target="_blank" rel="noopener">http://localhost:8000/redoc</a></p>
+          <p>Swagger UI: <a href="salonconnect-qzne.onrender.com/docs" target="_blank" rel="noopener">salonconnect-qzne.onrender.com/docs</a></p>
+          <p>ReDoc: <a href="salonconnect-qzne.onrender.com/redoc" target="_blank" rel="noopener">salonconnect-qzne.onrender.com/redoc</a></p>
 
           <h2>Testing</h2>
           <p>Use Swagger UI while running the app. Example curl calls:</p>
 
           <h3>User Registration</h3>
-          <pre class="code">curl -X POST "http://localhost:8000/api/users/register" \
+          <pre class="code">curl -X POST "salonconnect-qzne.onrender.com/api/users/register" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -457,7 +457,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000</pre>
   }'</pre>
 
           <h3>User Login</h3>
-          <pre class="code">curl -X POST "http://localhost:8000/api/users/login" \
+          <pre class="code">curl -X POST "salonconnect-qzne.onrender.com/api/users/login" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -465,7 +465,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000</pre>
   }'</pre>
 
           <h3>Browse Salons</h3>
-          <pre class="code">curl -X GET "http://localhost:8000/api/salons/?city=Lagos&min_rating=4.0"</pre>
+          <pre class="code">curl -X GET "salonconnect-qzne.onrender.com/api/salons/?city=Lagos&min_rating=4.0"</pre>
 
           <h2>Deployment</h2>
           <h3>Render.com Deployment (recommended)</h3>

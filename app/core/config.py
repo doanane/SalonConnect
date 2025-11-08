@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     FROM_EMAIL: str = os.getenv("FROM_EMAIL", "")
     
     # Frontend URLs
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://saloonconnect.vercel.app")
     
     class Config:
         case_sensitive = True

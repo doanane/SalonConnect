@@ -46,7 +46,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         pending_user = db.query(PendingUser).filter(PendingUser.email == user_data.email).first()
         
         if pending_user:
-            verification_url = f"http://localhost:8000/api/users/verify-email?token={pending_user.verification_token}"
+            verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={pending_user.verification_token}"
             
             # For development/testing, return the token and URL in the response
             return {
@@ -87,7 +87,7 @@ def verify_email(request: Request, token: str = Query(...), db: Session = Depend
         <body>
             <div class="error">❌ Verification Failed</div>
             <p>{str(e)}</p>
-            <p><a href="http://localhost:3000/register">Try registering again</a></p>
+            <p><a href="https://saloonconnect.vercel.app/register">Try registering again</a></p>
         </body>
         </html>
         """)
@@ -109,7 +109,7 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
     db.add(password_reset)
     db.commit()
     
-    reset_url = f"http://localhost:8000/api/users/reset-password-page?token={reset_token}"
+    reset_url = f"https://salonconnect-qzne.onrender.com/api/users/reset-password-page?token={reset_token}"
     
     # For development/testing, return the token and URL in the response
     return {
@@ -235,7 +235,7 @@ def resend_verification(email: str, db: Session = Depends(get_db)):
         first_name=pending_user.first_name,
         last_name=pending_user.last_name
     )
-    verification_url = f"http://localhost:8000/api/users/verify-email?token={pending_user.verification_token}"
+    verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={pending_user.verification_token}"
     EmailService.send_verification_email(temp_user, verification_url)
     
     return {"message": "Verification email sent successfully"}

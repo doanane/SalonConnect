@@ -18,7 +18,7 @@ class AuthService:
         existing_pending = db.query(PendingUser).filter(PendingUser.email == user_data.email).first()
         if existing_pending:
             # Resend verification email
-            verification_url = f"http://localhost:8000/api/users/verify-email?token={existing_pending.verification_token}"
+            verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={existing_pending.verification_token}"
             temp_user = User(
                 email=existing_pending.email,
                 first_name=existing_pending.first_name,
@@ -58,7 +58,7 @@ class AuthService:
             first_name=user_data.first_name,
             last_name=user_data.last_name
         )
-        verification_url = f"http://localhost:8000/api/users/verify-email?token={verification_token}"
+        verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={verification_token}"
         EmailService.send_verification_email(temp_user, verification_url)
         
         return {"message": "Registration successful! Please check your email for verification link."}
