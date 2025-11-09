@@ -65,7 +65,7 @@ class EmailService:
                     "bypass_list_management": {"enable": False},
                     "footer": {"enable": False},
                     "sandbox_mode": {"enable": False},
-                    "spam_check": {"enable": True, "threshold": 5}
+                    "spam_check": {"enable": False}  # ← FIXED: Disabled spam check
                 },
                 "tracking_settings": {
                     "click_tracking": {"enable": False},
@@ -97,7 +97,7 @@ class EmailService:
             import traceback
             print(f"❌ [SENDGRID] Traceback: {traceback.format_exc()}")
             return False
-
+            
     @staticmethod
     def create_email_template(template_name: str, user_data: dict, action_url: str = None, otp: str = None):
         """Create professional email templates with anti-spam content"""
