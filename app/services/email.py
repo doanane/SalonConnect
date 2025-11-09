@@ -1,9 +1,7 @@
-import smtplib
+import requests
 import jwt
 import random
 import string
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from app.core.config import settings
 import os
@@ -11,103 +9,319 @@ import os
 class EmailService:
     @staticmethod
     def send_email(to_email: str, subject: str, html_content: str) -> bool:
-        """Send email using SMTP with comprehensive debugging"""
+        """Send email using SendGrid API with comprehensive anti-spam measures"""
         try:
-            print(f"🔧 [EMAIL SERVICE] Starting email send to: {to_email}")
-            print(f"🔧 [EMAIL SERVICE] SMTP Config - Host: {settings.SMTP_HOST}, Port: {settings.SMTP_PORT}")
-            print(f"🔧 [EMAIL SERVICE] SMTP User: {settings.SMTP_USER}")
-            print(f"🔧 [EMAIL SERVICE] From Email: {settings.FROM_EMAIL}")
-            print(f"🔧 [EMAIL SERVICE] Running on Render: {'RENDER' in os.environ}")
+            print(f"🔧 [SENDGRID] Starting email send to: {to_email}")
+            print(f"🔧 [SENDGRID] From: {settings.FROM_EMAIL}")
+            print(f"🔧 [SENDGRID] Subject: {subject}")
             
-            # Validate SMTP configuration
-            if not all([settings.SMTP_HOST, settings.SMTP_PORT, settings.SMTP_USER, settings.SMTP_PASS]):
-                print("❌ [EMAIL SERVICE] Missing SMTP configuration")
+            # Validate configuration
+            if not settings.SENDGRID_API_KEY:
+                print("❌ [SENDGRID] Missing SENDGRID_API_KEY")
+                return False
+            
+            if not settings.FROM_EMAIL:
+                print("❌ [SENDGRID] Missing FROM_EMAIL")
                 return False
 
-            # Create message
-            msg = MIMEMultipart()
-            msg['From'] = settings.FROM_EMAIL
-            msg['To'] = to_email
-            msg['Subject'] = subject
+            # SendGrid API endpoint
+            url = "https://api.sendgrid.com/v3/mail/send"
             
-            # Attach HTML content
-            msg.attach(MIMEText(html_content, 'html'))
+            # Headers
+            headers = {
+                "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
+                "Content-Type": "application/json",
+                "User-Agent": "SalonConnect-API/1.0"
+            }
             
-            print(f"🔧 [EMAIL SERVICE] Attempting SMTP connection...")
+            # Enhanced request body with all anti-spam measures
+            data = {
+                "personalizations": [{
+                    "to": [{"email": to_email}],
+                    "subject": subject,
+                    "headers": {
+                        "X-Priority": "1",
+                        "X-MSMail-Priority": "High",
+                        "Importance": "high",
+                        "X-Mailer": "SalonConnect",
+                        "List-Unsubscribe": f"<mailto:unsubscribe@{settings.FROM_EMAIL.split('@')[1]}>",
+                        "Precedence": "bulk"
+                    }
+                }],
+                "from": {
+                    "email": settings.FROM_EMAIL, 
+                    "name": "Salon Connect"
+                },
+                "reply_to": {
+                    "email": settings.FROM_EMAIL,
+                    "name": "Salon Connect Support"
+                },
+                "subject": subject,
+                "content": [{
+                    "type": "text/html",
+                    "value": html_content
+                }],
+                "mail_settings": {
+                    "bypass_list_management": {"enable": False},
+                    "footer": {"enable": False},
+                    "sandbox_mode": {"enable": False},
+                    "spam_check": {"enable": True, "threshold": 5}
+                },
+                "tracking_settings": {
+                    "click_tracking": {"enable": False},
+                    "open_tracking": {"enable": False},
+                    "subscription_tracking": {"enable": False}
+                },
+                "categories": ["transactional", "salon_connect"]
+            }
             
-            # Try different connection methods
-            try:
-                # Method 1: Direct SSL connection (preferred)
-                with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=30) as server:
-                    print(f"✅ [EMAIL SERVICE] SMTP SSL connection established")
-                    server.login(settings.SMTP_USER, settings.SMTP_PASS)
-                    print(f"✅ [EMAIL SERVICE] SMTP login successful")
-                    server.send_message(msg)
-                    print(f"✅ [EMAIL SERVICE] Message sent successfully")
-                    
-            except Exception as ssl_error:
-                print(f"⚠️ [EMAIL SERVICE] SSL connection failed: {ssl_error}")
-                print(f"🔧 [EMAIL SERVICE] Trying TLS connection...")
-                
-                # Method 2: TLS connection
-                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=30) as server:
-                    server.starttls()
-                    print(f"✅ [EMAIL SERVICE] TLS connection established")
-                    server.login(settings.SMTP_USER, settings.SMTP_PASS)
-                    print(f"✅ [EMAIL SERVICE] SMTP login successful")
-                    server.send_message(msg)
-                    print(f"✅ [EMAIL SERVICE] Message sent successfully")
+            print(f"🔧 [SENDGRID] Sending email via SendGrid API...")
             
-            print(f"✅ [EMAIL SERVICE] Email sent successfully to: {to_email}")
+            # Send request with timeout
+            response = requests.post(url, json=data, headers=headers, timeout=30)
+            
+            if response.status_code == 202:
+                print(f"✅ [SENDGRID] Email sent successfully! Status: {response.status_code}")
+                return True
+            else:
+                print(f"❌ [SENDGRID] Failed to send email. Status: {response.status_code}")
+                error_response = response.json()
+                print(f"❌ [SENDGRID] Error details: {error_response}")
+                return False
+            
+        except requests.exceptions.Timeout:
+            print(f"❌ [SENDGRID] Request timeout - email might still be sent")
             return True
-            
-        except smtplib.SMTPAuthenticationError as e:
-            print(f"❌ [EMAIL SERVICE] SMTP Authentication failed: {str(e)}")
-            print(f"❌ [EMAIL SERVICE] This usually means:")
-            print(f"❌ [EMAIL SERVICE] 1. Wrong email password")
-            print(f"❌ [EMAIL SERVICE] 2. 2FA is enabled but no app password is used")
-            print(f"❌ [EMAIL SERVICE] 3. Less secure apps access is disabled")
-            return False
-            
         except Exception as e:
-            print(f"❌ [EMAIL SERVICE] All connection methods failed: {str(e)}")
+            print(f"❌ [SENDGRID] Error sending email: {str(e)}")
             import traceback
-            print(f"❌ [EMAIL SERVICE] Traceback: {traceback.format_exc()}")
+            print(f"❌ [SENDGRID] Traceback: {traceback.format_exc()}")
             return False
 
     @staticmethod
+    def create_email_template(template_name: str, user_data: dict, action_url: str = None, otp: str = None):
+        """Create professional email templates with anti-spam content"""
+        
+        base_template = """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="format-detection" content="telephone=no">
+            <meta name="format-detection" content="date=no">
+            <meta name="format-detection" content="address=no">
+            <meta name="format-detection" content="email=no">
+            <title>{subject}</title>
+            <style>
+                /* Reset and base styles */
+                body, html {{ margin: 0; padding: 0; font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif; line-height: 1.6; color: #333333; background-color: #f6f9fc; }}
+                .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; }}
+                .content {{ padding: 40px 30px; border-bottom: 1px solid #eaeaea; }}
+                .footer {{ padding: 30px; text-align: center; color: #666666; font-size: 12px; background: #f8f9fa; }}
+                .button {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; display: inline-block; margin: 25px 0; font-weight: 600; font-size: 16px; text-align: center; }}
+                .otp-code {{ background: #2c3e50; color: white; padding: 20px; font-size: 32px; font-weight: bold; text-align: center; letter-spacing: 12px; margin: 25px 0; border-radius: 8px; font-family: 'Courier New', monospace; }}
+                .notice {{ background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 20px; margin: 25px 0; }}
+                .warning {{ background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 20px; margin: 25px 0; color: #856404; }}
+                .spam-alert {{ background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 20px; margin: 25px 0; color: #721c24; }}
+                .text-center {{ text-align: center; }}
+                .mb-20 {{ margin-bottom: 20px; }}
+                .mt-20 {{ margin-top: 20px; }}
+                .small {{ font-size: 14px; color: #666666; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 style="margin: 0; font-size: 32px; font-weight: 700;">Salon Connect</h1>
+                    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Beauty & Wellness Services</p>
+                </div>
+                
+                <div class="content">
+                    {content}
+                </div>
+                
+                <div class="footer">
+                    <p style="margin: 0 0 10px 0;">© 2024 Salon Connect. All rights reserved.</p>
+                    <p style="margin: 0 0 10px 0;" class="small">
+                        This email was sent to {user_email} because you have an account with Salon Connect.
+                    </p>
+                    <p style="margin: 0;" class="small">
+                        Salon Connect | Beauty & Wellness Services | Ghana
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        templates = {
+            "verification": {
+                "subject": "Verify Your Email Address - Salon Connect",
+                "content": f"""
+                    <h2 style="color: #2c3e50; margin-bottom: 20px;">Welcome to Salon Connect, {user_data.get('first_name', 'there')}! 👋</h2>
+                    
+                    <div class="notice">
+                        <h3 style="margin-top: 0; color: #2c3e50;">Complete Your Registration</h3>
+                        <p style="margin-bottom: 0;">Thank you for choosing Salon Connect. To activate your account and start booking appointments, please verify your email address.</p>
+                    </div>
+                    
+                    <div class="text-center">
+                        <a href="{action_url}" class="button">Verify Email Address</a>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>⚠️ Important:</strong> This verification link expires in 24 hours.
+                    </div>
+                    
+                    <div class="spam-alert">
+                        <strong>📧 Email not in inbox?</strong><br>
+                        If you don't see this email in your inbox within 5 minutes, please:
+                        <ul>
+                            <li>Check your <strong>spam</strong> or <strong>junk</strong> folder</li>
+                            <li>Mark this email as <strong>"Not Spam"</strong></li>
+                            <li>Add <strong>{settings.FROM_EMAIL}</strong> to your contacts</li>
+                        </ul>
+                    </div>
+                    
+                    <p class="small">If you didn't create this account, please ignore this email or contact our support team.</p>
+                """
+            },
+            "password_reset": {
+                "subject": "Reset Your Password - Salon Connect",
+                "content": f"""
+                    <h2 style="color: #2c3e50; margin-bottom: 20px;">Password Reset Request</h2>
+                    
+                    <div class="warning">
+                        <h3 style="margin-top: 0; color: #856404;">Security Notice</h3>
+                        <p style="margin-bottom: 0;">We received a request to reset your password for your Salon Connect account.</p>
+                    </div>
+                    
+                    <div class="text-center">
+                        <a href="{action_url}" class="button">Reset Password</a>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>⏰ Time-sensitive:</strong> This reset link expires in 1 hour for security reasons.
+                    </div>
+                    
+                    <div class="spam-alert">
+                        <strong>📧 Can't find this email?</strong><br>
+                        Please check your spam folder and mark this email as "Not Spam" to ensure you receive important account notifications.
+                    </div>
+                    
+                    <p class="small">If you didn't request this password reset, please ignore this email. Your account remains secure.</p>
+                """
+            },
+            "otp": {
+                "subject": "Your Login Code - Salon Connect",
+                "content": f"""
+                    <h2 style="color: #2c3e50; margin-bottom: 20px;">Your Login Verification Code</h2>
+                    
+                    <div class="notice">
+                        <p style="margin-bottom: 15px;">Hello {user_data.get('first_name', 'there')}, use the following One-Time Password to log in to your Salon Connect account:</p>
+                    </div>
+                    
+                    <div class="otp-code">{otp}</div>
+                    
+                    <div class="warning">
+                        <strong>⏰ Expires in 10 minutes</strong><br>
+                        This code will expire for security reasons. Do not share this code with anyone.
+                    </div>
+                    
+                    <div class="spam-alert">
+                        <strong>📧 Not seeing our emails?</strong><br>
+                        To ensure you receive all important communications, please add <strong>{settings.FROM_EMAIL}</strong> to your safe senders list.
+                    </div>
+                    
+                    <p class="small">If you didn't request this login code, please ignore this email and consider changing your password.</p>
+                """
+            }
+        }
+        
+        template = templates.get(template_name, templates["verification"])
+        user_email = user_data.get('email', 'you')
+        
+        return base_template.format(
+            subject=template["subject"],
+            content=template["content"],
+            user_email=user_email
+        ), template["subject"]
+
+    @staticmethod
+    def send_verification_email(user, verification_url: str):
+        """Send email verification email"""
+        user_data = {
+            'email': getattr(user, 'email', ''),
+            'first_name': getattr(user, 'first_name', 'there')
+        }
+        
+        html_content, subject = EmailService.create_email_template(
+            "verification", user_data, action_url=verification_url
+        )
+        
+        print(f"📧 [SENDGRID] Sending verification email to: {user_data['email']}")
+        return EmailService.send_email(user_data['email'], subject, html_content)
+
+    @staticmethod
+    def send_password_reset_email(user, reset_url: str):
+        """Send password reset email"""
+        user_data = {
+            'email': getattr(user, 'email', ''),
+            'first_name': getattr(user, 'first_name', 'there')
+        }
+        
+        html_content, subject = EmailService.create_email_template(
+            "password_reset", user_data, action_url=reset_url
+        )
+        
+        print(f"📧 [SENDGRID] Sending password reset email to: {user_data['email']}")
+        return EmailService.send_email(user_data['email'], subject, html_content)
+
+    @staticmethod
+    def send_otp_email(user, otp: str):
+        """Send OTP for login"""
+        user_data = {
+            'email': getattr(user, 'email', ''),
+            'first_name': getattr(user, 'first_name', 'there')
+        }
+        
+        html_content, subject = EmailService.create_email_template(
+            "otp", user_data, otp=otp
+        )
+        
+        print(f"📧 [SENDGRID] Sending OTP email to: {user_data['email']}")
+        return EmailService.send_email(user_data['email'], subject, html_content)
+
+    # Keep the token generation methods the same
+    @staticmethod
     def generate_verification_token(email: str) -> str:
-        """Generate JWT token for email verification"""
         payload = {
             'email': email,
             'exp': datetime.utcnow() + timedelta(hours=24),
             'type': 'email_verification'
         }
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-        # Ensure token is string, not bytes
         if isinstance(token, bytes):
             return token.decode('utf-8')
         return token
 
     @staticmethod
     def generate_reset_token(email: str) -> str:
-        """Generate JWT token for password reset"""
         payload = {
             'email': email,
             'exp': datetime.utcnow() + timedelta(hours=1),
             'type': 'password_reset'
         }
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-        # Ensure token is string, not bytes
         if isinstance(token, bytes):
             return token.decode('utf-8')
         return token
 
     @staticmethod
     def verify_token(token: str, token_type: str) -> dict:
-        """Verify JWT token"""
         try:
-            # Clean the token if it has b' prefix
             if token.startswith("b'") and token.endswith("'"):
                 token = token[2:-1]
             
@@ -122,152 +336,8 @@ class EmailService:
 
     @staticmethod
     def verify_reset_token(token: str) -> dict:
-        """Verify password reset token"""
         return EmailService.verify_token(token, 'password_reset')
 
     @staticmethod
     def generate_otp() -> str:
-        """Generate 6-digit OTP"""
         return ''.join(random.choices(string.digits, k=6))
-
-    @staticmethod
-    def send_verification_email(user, verification_url: str):
-        """Send email verification email"""
-        subject = "Verify Your Email - Salon Connect"
-        
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
-                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
-                .button {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }}
-                .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>Welcome to Salon Connect! 🎉</h1>
-                </div>
-                <div class="content">
-                    <h2>Hello {getattr(user, 'first_name', 'there')},</h2>
-                    <p>Thank you for registering with Salon Connect. To complete your registration and start booking appointments, please verify your email address by clicking the button below:</p>
-                    
-                    <div style="text-align: center;">
-                        <a href="{verification_url}" class="button">Verify Email Address</a>
-                    </div>
-                    
-                    <p>This verification link will expire in 24 hours.</p>
-                    <p>If you didn't create an account with Salon Connect, please ignore this email.</p>
-                    
-                    <p>Best regards,<br>The Salon Connect Team</p>
-                </div>
-                <div class="footer">
-                    <p>© 2024 Salon Connect. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
-        print(f"📧 [EMAIL SERVICE] Sending verification email to: {getattr(user, 'email', 'unknown')}")
-        print(f"📧 [EMAIL SERVICE] Verification URL: {verification_url}")
-        return EmailService.send_email(getattr(user, 'email', ''), subject, html_content)
-
-    @staticmethod
-    def send_password_reset_email(user, reset_url: str):
-        """Send password reset email"""
-        subject = "Reset Your Password - Salon Connect"
-        
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
-                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
-                .button {{ background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }}
-                .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>Password Reset Request</h1>
-                </div>
-                <div class="content">
-                    <h2>Hello {getattr(user, 'first_name', 'there')},</h2>
-                    <p>We received a request to reset your password for your Salon Connect account. Click the button below to create a new password:</p>
-                    
-                    <div style="text-align: center;">
-                        <a href="{reset_url}" class="button">Reset Password</a>
-                    </div>
-                    
-                    <p>This reset link will expire in 1 hour.</p>
-                    <p>If you didn't request a password reset, please ignore this email. Your account remains secure.</p>
-                    
-                    <p>Best regards,<br>The Salon Connect Team</p>
-                </div>
-                <div class="footer">
-                    <p>© 2024 Salon Connect. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
-        print(f"📧 [EMAIL SERVICE] Sending password reset email to: {getattr(user, 'email', 'unknown')}")
-        print(f"📧 [EMAIL SERVICE] Reset URL: {reset_url}")
-        return EmailService.send_email(getattr(user, 'email', ''), subject, html_content)
-
-    @staticmethod
-    def send_otp_email(user, otp: str):
-        """Send OTP for login"""
-        subject = "Your Login OTP - Salon Connect"
-        
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
-                .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
-                .otp-code {{ background: #333; color: white; padding: 15px; font-size: 32px; font-weight: bold; text-align: center; letter-spacing: 10px; margin: 20px 0; border-radius: 5px; }}
-                .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>Your Login OTP</h1>
-                </div>
-                <div class="content">
-                    <h2>Hello {getattr(user, 'first_name', 'there')},</h2>
-                    <p>Use the following OTP to log in to your Salon Connect account:</p>
-                    
-                    <div class="otp-code">{otp}</div>
-                    
-                    <p>This OTP will expire in 10 minutes.</p>
-                    <p>If you didn't request this OTP, please ignore this email.</p>
-                    
-                    <p>Best regards,<br>The Salon Connect Team</p>
-                </div>
-                <div class="footer">
-                    <p>© 2024 Salon Connect. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        
-        print(f"📧 [EMAIL SERVICE] Sending OTP email to: {getattr(user, 'email', 'unknown')}")
-        print(f"📧 [EMAIL SERVICE] OTP: {otp}")
-        return EmailService.send_email(getattr(user, 'email', ''), subject, html_content)
