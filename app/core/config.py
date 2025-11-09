@@ -24,12 +24,9 @@ class Settings(BaseSettings):
     PAYSTACK_PUBLIC_KEY: str = os.getenv("PAYSTACK_PUBLIC_KEY", "")
     PAYSTACK_BASE_URL: str = os.getenv("PAYSTACK_BASE_URL", "https://api.paystack.co")
     
-    # Email Configuration
-    SMTP_HOST: str = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "465"))
-    SMTP_USER: str = os.getenv("SMTP_USER", "")
-    SMTP_PASS: str = os.getenv("SMTP_PASS", "")
-    FROM_EMAIL: str = os.getenv("FROM_EMAIL", "")
+    # SendGrid Email Configuration
+    SENDGRID_API_KEY: str = os.getenv("SENDGRID_API_KEY", "")
+    FROM_EMAIL: str = os.getenv("FROM_EMAIL", "anane365221@gmail.com")
     
     # Frontend URLs
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://saloonconnect.vercel.app")
@@ -41,9 +38,9 @@ class Settings(BaseSettings):
 # Create settings instance
 settings = Settings()
 
-# Print configuration for debugging
+# Print configuration for debugging (without showing API keys)
 print(f"🔧 [CONFIG] DEBUG: {settings.DEBUG}")
 print(f"🔧 [CONFIG] DATABASE_URL: {settings.DATABASE_URL[:50]}...")
-print(f"🔧 [CONFIG] SMTP_HOST: {settings.SMTP_HOST}")
-print(f"🔧 [CONFIG] SMTP_USER: {settings.SMTP_USER}")
+print(f"🔧 [CONFIG] SENDGRID_API_KEY set: {bool(settings.SENDGRID_API_KEY)}")
+print(f"🔧 [CONFIG] FROM_EMAIL: {settings.FROM_EMAIL}")
 print(f"🔧 [CONFIG] FRONTEND_URL: {settings.FRONTEND_URL}")
