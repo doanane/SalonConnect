@@ -31,16 +31,50 @@ class Settings(BaseSettings):
     # Frontend URLs
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://saloonconnect.vercel.app")
     
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    
+    # Environment detection
+    RENDER_EXTERNAL_URL: str = os.getenv("RENDER_EXTERNAL_URL", "")
+    BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
+    
+    @property
+    def IS_PRODUCTION(self):
+        """Check if we're running in production - FORCE LOCAL FOR TESTING"""
+        # If DEBUG is True, we're definitely in development
+        if self.DEBUG:
+            return False
+        return bool(self.RENDER_EXTERNAL_URL)
+    
+    @property
+    def CURRENT_BASE_URL(self):
+        """Get current base URL - FORCE LOCAL FOR TESTING"""
+        if self.DEBUG:
+            return self.BASE_URL.rstrip('/')
+        elif self.IS_PRODUCTION and self.RENDER_EXTERNAL_URL:
+            return self.RENDER_EXTERNAL_URL.rstrip('/')
+        return self.BASE_URL.rstrip('/')
+    
+    @property
+    def GOOGLE_REDIRECT_URI(self):
+        """Auto-generate redirect URI - FORCE LOCAL FOR TESTING"""
+        base_url = self.CURRENT_BASE_URL
+        redirect_uri = f"{base_url}/api/users/auth/google/callback"
+        print(f"🎯 [CONFIG] Using redirect URI: {redirect_uri}")  # FIXED: redirect_uri not redirect_url
+        return redirect_uri
+    
     class Config:
         case_sensitive = True
         env_file = ".env"
+        extra = "ignore"
 
 # Create settings instance
 settings = Settings()
 
-# Print configuration for debugging (without showing API keys)
-print(f"🔧 [CONFIG] DEBUG: {settings.DEBUG}")
-print(f"🔧 [CONFIG] DATABASE_URL: {settings.DATABASE_URL[:50]}...")
-print(f"🔧 [CONFIG] SENDGRID_API_KEY set: {bool(settings.SENDGRID_API_KEY)}")
-print(f"🔧 [CONFIG] FROM_EMAIL: {settings.FROM_EMAIL}")
-print(f"🔧 [CONFIG] FRONTEND_URL: {settings.FRONTEND_URL}")
+# Print configuration for debugging
+print(f"🎯 [CONFIG] Environment: {'PRODUCTION' if settings.IS_PRODUCTION else 'DEVELOPMENT'}")
+print(f"🎯 [CONFIG] DEBUG mode: {settings.DEBUG}")
+print(f"🎯 [CONFIG] Current Base URL: {settings.CURRENT_BASE_URL}")
+print(f"🎯 [CONFIG] Google Redirect URI: {settings.GOOGLE_REDIRECT_URI}")
+print(f"🎯 [CONFIG] GOOGLE_CLIENT_ID set: {bool(settings.GOOGLE_CLIENT_ID)}")

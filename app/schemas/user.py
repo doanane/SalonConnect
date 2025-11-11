@@ -92,11 +92,19 @@ class UserProfileCreate(UserProfileBase):
 class UserProfileUpdate(UserProfileBase):
     pass
 
-class UserProfileResponse(UserProfileBase):
+
+class UserProfileResponse(BaseModel):
     id: int
     user_id: int
+    bio: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    gender: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    profile_picture: Optional[str] = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime
     
     class Config:
         from_attributes = True
@@ -109,3 +117,15 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     user_id: Optional[int] = None
     email: Optional[str] = None
+
+
+# Add this to your existing schemas in schemas/user.py
+
+class UserProfileResponse(UserProfileBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True

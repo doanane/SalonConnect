@@ -10,19 +10,37 @@ import httpx
 import time
 from app.routes import favorites
 
-
 from app.database import engine
 from app.models.user import User, UserProfile
 from app.models.salon import Salon, Service, Review, SalonImage
 from app.models.booking import Booking, BookingItem
 from app.models.payment import Payment
 
-from app.routes import auth, users, salons, bookings, payments, vendor
+from app.routes import auth, users, salons, bookings, payments, vendor, favorites, google_oauth
 
-# Keep-alive function
+async def create_tables_in_background():
+    """Create database tables in the background without blocking app startup"""
+    print("🛠️ Starting background table creation...")
+    try:
+        # Small delay to ensure app is responsive first
+        await asyncio.sleep(2)
+        
+        User.metadata.create_all(bind=engine)
+        UserProfile.metadata.create_all(bind=engine)
+        Salon.metadata.create_all(bind=engine)
+        Service.metadata.create_all(bind=engine)
+        Review.metadata.create_all(bind=engine)
+        SalonImage.metadata.create_all(bind=engine)
+        Booking.metadata.create_all(bind=engine)
+        BookingItem.metadata.create_all(bind=engine)
+        Payment.metadata.create_all(bind=engine)
+        print("✅ All production tables created successfully!")
+    except Exception as e:
+        print(f"❌ Error creating tables: {e}")
+
 async def keep_alive():
     """Ping the app every 10 minutes to prevent Render sleep"""
-    # Wait a bit for server to be fully ready
+  
     await asyncio.sleep(30)
     
     while True:
@@ -52,31 +70,16 @@ async def keep_alive():
         # Wait 10 minutes before next ping
         await asyncio.sleep(600)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # TEMPORARY: Always create tables to fix production issue
-    print("🛠️ Creating database tables in production...")
-    try:
-        User.metadata.create_all(bind=engine)
-        UserProfile.metadata.create_all(bind=engine)
-        Salon.metadata.create_all(bind=engine)
-        Service.metadata.create_all(bind=engine)
-        Review.metadata.create_all(bind=engine)
-        SalonImage.metadata.create_all(bind=engine)
-        Booking.metadata.create_all(bind=engine)
-        BookingItem.metadata.create_all(bind=engine)
-        Payment.metadata.create_all(bind=engine)
-        print("✅ All production tables created successfully!")
-    except Exception as e:
-        print(f"❌ Error creating tables: {e}")
-    
-    # Start the keep-alive task
+    # Just start keep-alive, tables should be created via migrations
     print("🚀 Starting keep-alive service...")
     keep_alive_task = asyncio.create_task(keep_alive())
     
     yield
     
-    # Cleanup (optional)
+    # Cleanup
     keep_alive_task.cancel()
 
 security_scheme = HTTPBearer()
@@ -100,6 +103,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/users", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(google_oauth.router, prefix="/api/users", tags=["Google Authentication"])
 app.include_router(salons.router, prefix="/api/salons", tags=["Salons"])
 app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
