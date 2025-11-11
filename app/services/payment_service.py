@@ -34,28 +34,30 @@ class PaymentService:
         db.add(payment)
         db.commit()
         
-        # Initialize Paystack payment
+        # Initialize Paystack payment - TEST MODE
         try:
             headers = {
                 "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
                 "Content-Type": "application/json"
             }
             
-            # Use production frontend URL for callback
+            # For test mode, use a simple callback URL
             callback_url = f"{settings.FRONTEND_URL}/payment/success"
             
             payload = {
                 "email": booking.customer.email,
                 "amount": int(booking.total_amount * 100),  # Convert GHS to pesewas
                 "reference": payment_reference,
-                "callback_url": callback_url,  # This should point to your frontend
+                "callback_url": callback_url,
                 "currency": "GHS",
                 "metadata": {
                     "booking_id": booking_id,
                     "customer_id": customer_id,
-                    "callback_url": f"{settings.CURRENT_BASE_URL}/api/payments/verify"  # Backend verification
+                    "test_mode": True  # Mark as test mode
                 }
             }
+            
+            print(f"🧪 [TEST MODE] Initializing Paystack payment: {payload}")
             
             response = requests.post(
                 f"{settings.PAYSTACK_BASE_URL}/transaction/initialize",
@@ -65,19 +67,23 @@ class PaymentService:
             
             if response.status_code == 200:
                 data = response.json()
+                print(f"✅ [TEST MODE] Payment initialized: {data}")
                 return {
                     "payment_reference": payment_reference,
                     "authorization_url": data['data']['authorization_url'],
+                    "access_code": data['data']['access_code'],
                     "amount": booking.total_amount,
-                    "currency": "GHS"
+                    "currency": "GHS",
+                    "test_mode": True
                 }
             else:
+                print(f"❌ [TEST MODE] Paystack error: {response.text}")
                 raise HTTPException(status_code=400, detail="Failed to initialize payment")
                 
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=500, detail=f"Payment initialization failed: {str(e)}")
-
+            print(f"❌ [TEST MODE] Payment initialization failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Payment initialization failed: {str(e)}")    
     @staticmethod
     def verify_payment(db: Session, reference: str, customer_id: int):
         payment = db.query(Payment).filter(Payment.reference == reference).first()
