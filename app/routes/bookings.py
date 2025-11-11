@@ -1,17 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query  # CHANGED: imported as http_status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.database import get_db
 from app.schemas.booking import BookingResponse, BookingCreate, BookingUpdate
-from app.routes.auth import get_current_user
+from app.routes.users import get_current_user
 from app.services.booking_service import BookingService
 
 router = APIRouter()
 
 @router.get("/", response_model=List[BookingResponse])
 def get_bookings(
-    status: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),  # This parameter name conflicts with the status module
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
@@ -27,9 +27,9 @@ def create_booking(
     db: Session = Depends(get_db)
 ):
     """Create a new booking"""
-    if current_user.role != "customer":
+    if current_user.role.value != "customer":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,  # CHANGED: Use http_status
             detail="Only customers can create bookings"
         )
     
@@ -45,16 +45,16 @@ def get_booking(
     booking = BookingService.get_booking_by_id(db, booking_id)
     if not booking:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,  # CHANGED: Use http_status
             detail="Booking not found"
         )
     
-    # Check if user is authorized to view this booking
+    # Authorization check
     if booking.customer_id != current_user.id and (
-        current_user.role == "vendor" and booking.salon.owner_id != current_user.id
+        current_user.role.value == "vendor" and booking.salon.owner_id != current_user.id
     ):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,  # CHANGED: Use http_status
             detail="Not authorized to view this booking"
         )
     
@@ -71,16 +71,16 @@ def update_booking(
     booking = BookingService.get_booking_by_id(db, booking_id)
     if not booking:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,  # CHANGED: Use http_status
             detail="Booking not found"
         )
     
-    # Check if user is authorized to update this booking
+    # Authorization check
     if booking.customer_id != current_user.id and (
-        current_user.role == "vendor" and booking.salon.owner_id != current_user.id
+        current_user.role.value == "vendor" and booking.salon.owner_id != current_user.id
     ):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,  # CHANGED: Use http_status
             detail="Not authorized to update this booking"
         )
     
@@ -88,16 +88,16 @@ def update_booking(
 
 @router.get("/vendor/bookings", response_model=List[BookingResponse])
 def get_vendor_bookings(
-    status: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),  # This parameter name conflicts with the status module
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get bookings for vendor's salons"""
-    if current_user.role != "vendor":
+    if current_user.role.value != "vendor":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,  # CHANGED: Use http_status
             detail="Only vendors can access this endpoint"
         )
     

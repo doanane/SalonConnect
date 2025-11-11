@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.services.email import EmailService
 
 class PaymentService:
+
     @staticmethod
     def initiate_payment(db: Session, booking_id: int, customer_id: int):
         booking = db.query(Booking).filter(
@@ -26,6 +27,7 @@ class PaymentService:
             booking_id=booking_id,
             reference=payment_reference,
             amount=booking.total_amount,
+            currency="GHS",
             payment_method=PaymentMethod.PAYSTACK
         )
         
@@ -39,14 +41,19 @@ class PaymentService:
                 "Content-Type": "application/json"
             }
             
+            # Use production frontend URL for callback
+            callback_url = f"{settings.FRONTEND_URL}/payment/success"
+            
             payload = {
                 "email": booking.customer.email,
-                "amount": int(booking.total_amount * 100),
+                "amount": int(booking.total_amount * 100),  # Convert GHS to pesewas
                 "reference": payment_reference,
-                "callback_url": f"{settings.FRONTEND_URL}/payment/success",
+                "callback_url": callback_url,  # This should point to your frontend
+                "currency": "GHS",
                 "metadata": {
                     "booking_id": booking_id,
-                    "customer_id": customer_id
+                    "customer_id": customer_id,
+                    "callback_url": f"{settings.CURRENT_BASE_URL}/api/payments/verify"  # Backend verification
                 }
             }
             
@@ -61,7 +68,8 @@ class PaymentService:
                 return {
                     "payment_reference": payment_reference,
                     "authorization_url": data['data']['authorization_url'],
-                    "amount": booking.total_amount
+                    "amount": booking.total_amount,
+                    "currency": "GHS"
                 }
             else:
                 raise HTTPException(status_code=400, detail="Failed to initialize payment")
