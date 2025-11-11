@@ -19,7 +19,7 @@ class Booking(Base):
     booking_date = Column(DateTime, nullable=False)
     duration = Column(Integer)
     total_amount = Column(Float, nullable=False)
-    currency = Column(String(10), default="NGN")
+    currency = Column(String(10), default="GHS")  # CHANGED: NGN to GHS
     status = Column(Enum(BookingStatus), default=BookingStatus.PENDING)
     special_requests = Column(Text)
     cancellation_reason = Column(Text)
