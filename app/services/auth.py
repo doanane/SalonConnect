@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta
+import jwt  # ADD THIS IMPORT
+from app.core.config import settings  # ADD THIS IMPORT
 
 from app.models.user import User, UserProfile, UserRole, PendingUser, UserOTP
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token, UserProfileUpdate, OTPLoginRequest, OTPVerifyRequest
@@ -217,3 +219,97 @@ class AuthService:
         
         new_access_token = create_access_token(data={"user_id": user.id, "email": user.email})
         return Token(access_token=new_access_token, refresh_token=refresh_token, token_type="bearer")
+
+    @staticmethod
+    def update_user_profile(db: Session, user_id: int, profile_data: UserProfileUpdate):
+        """Update user profile - returns UserProfile object"""
+        # Get or create user profile
+        profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+        
+        if not profile:
+            # Create profile if it doesn't exist
+            profile = UserProfile(user_id=user_id)
+            db.add(profile)
+        
+        # Update profile fields
+        update_data = profile_data.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(profile, field, value)
+        
+        profile.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(profile)
+        
+        return profile  # Return UserProfile object, not User object
+
+    @staticmethod
+    def get_user_profile(db: Session, user_id: int):
+        """Get user profile - returns UserProfile object"""
+        profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+        
+        if not profile:
+            # Create default profile if it doesn't exist
+            profile = UserProfile(user_id=user_id)
+            db.add(profile)
+            db.commit()
+            db.refresh(profile)
+        
+        return profile  # Return UserProfile object
+
+    @staticmethod
+    def get_customer_dashboard(db: Session, user_id: int):
+        """Get customer dashboard data"""
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get recent bookings count
+        from app.models.booking import Booking
+        recent_bookings_count = db.query(Booking).filter(
+            Booking.customer_id == user_id
+        ).count()
+        
+        # Get favorites count
+        favorites_count = len(user.favorite_salons) if user.favorite_salons else 0
+        
+        return {
+            "user_id": user_id,
+            "user_name": f"{user.first_name} {user.last_name}",
+            "total_bookings": recent_bookings_count,
+            "favorite_salons_count": favorites_count,
+            "recent_activity": [],
+            "upcoming_appointments": []
+        }
+
+    @staticmethod
+    def get_vendor_dashboard(db: Session, user_id: int):
+        """Get vendor dashboard data"""
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get vendor's salons
+        from app.models.salon import Salon
+        from app.models.booking import Booking
+        
+        salons = db.query(Salon).filter(Salon.owner_id == user_id).all()
+        total_salons = len(salons)
+        
+        # Get total bookings across all salons
+        total_bookings = 0
+        total_revenue = 0
+        for salon in salons:
+            salon_bookings = db.query(Booking).filter(Booking.salon_id == salon.id).all()
+            total_bookings += len(salon_bookings)
+            # Calculate revenue (you'll need to implement this based on your payment model)
+        
+        return {
+            "user_id": user_id,
+            "vendor_name": f"{user.first_name} {user.last_name}",
+            "total_salons": total_salons,
+            "total_bookings": total_bookings,
+            "total_revenue": total_revenue,
+            "recent_bookings": [],
+            "salon_performance": []
+        }

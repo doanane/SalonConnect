@@ -1,3 +1,4 @@
+
 import requests
 import jwt
 import random
@@ -5,6 +6,7 @@ import string
 from datetime import datetime, timedelta
 from app.core.config import settings
 import os
+import re
 
 class EmailService:
     @staticmethod
@@ -34,18 +36,23 @@ class EmailService:
                 "User-Agent": "SalonConnect-API/1.0"
             }
             
-            # Enhanced request body with all anti-spam measures
+            # FIXED: Content order - text/plain must come first
             data = {
                 "personalizations": [{
                     "to": [{"email": to_email}],
                     "subject": subject,
+                    # Add headers that improve deliverability
                     "headers": {
                         "X-Priority": "1",
                         "X-MSMail-Priority": "High",
                         "Importance": "high",
                         "X-Mailer": "SalonConnect",
-                        "List-Unsubscribe": f"<mailto:unsubscribe@{settings.FROM_EMAIL.split('@')[1]}>",
-                        "Precedence": "bulk"
+                        "List-Unsubscribe": f"<mailto:unsubscribe@{settings.FROM_EMAIL.split('@')[1]}?subject=unsubscribe>",
+                        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                        "Precedence": "bulk",
+                        # Add authentication headers
+                        "X-Entity-Ref": "salon-connect-transactional",
+                        "X-Report-Abuse": f"Please report abuse to {settings.FROM_EMAIL}",
                     }
                 }],
                 "from": {
@@ -57,22 +64,35 @@ class EmailService:
                     "name": "Salon Connect Support"
                 },
                 "subject": subject,
-                "content": [{
-                    "type": "text/html",
-                    "value": html_content
-                }],
+                "content": [
+                    # FIXED: text/plain MUST come first
+                    {
+                        "type": "text/plain",
+                        "value": EmailService.extract_plain_text(html_content)
+                    },
+                    {
+                        "type": "text/html",
+                        "value": html_content
+                    }
+                ],
                 "mail_settings": {
                     "bypass_list_management": {"enable": False},
                     "footer": {"enable": False},
                     "sandbox_mode": {"enable": False},
-                    "spam_check": {"enable": False}  # ← FIXED: Disabled spam check
+                    "spam_check": {"enable": False}
                 },
                 "tracking_settings": {
-                    "click_tracking": {"enable": False},
-                    "open_tracking": {"enable": False},
+                    "click_tracking": {"enable": True},  # Enable tracking for engagement
+                    "open_tracking": {"enable": True},   # Enable tracking for engagement
                     "subscription_tracking": {"enable": False}
                 },
-                "categories": ["transactional", "salon_connect"]
+                "categories": ["transactional", "salon_connect", "account_notifications"],
+                # Add custom args for better tracking
+                "custom_args": {
+                    "app_name": "Salon Connect",
+                    "email_type": "transactional",
+                    "user_segment": "active"
+                }
             }
             
             print(f"🔧 [SENDGRID] Sending email via SendGrid API...")
@@ -97,7 +117,37 @@ class EmailService:
             import traceback
             print(f"❌ [SENDGRID] Traceback: {traceback.format_exc()}")
             return False
-            
+
+    @staticmethod
+    def extract_plain_text(html_content: str) -> str:
+        """Extract plain text from HTML content for better deliverability"""
+        # Remove HTML tags but keep line breaks for readability
+        text = re.sub(r'<br\s*/?>', '\n', html_content)
+        text = re.sub(r'</p>', '\n\n', text)
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # Replace multiple spaces with single space
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Decode HTML entities
+        text = re.sub(r'&nbsp;', ' ', text)
+        text = re.sub(r'&amp;', '&', text)
+        text = re.sub(r'&lt;', '<', text)
+        text = re.sub(r'&gt;', '>', text)
+        
+        # Remove extra whitespace and trim
+        text = text.strip()
+        
+        # Create a more readable plain text version
+        lines = text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            line = line.strip()
+            if line:
+                cleaned_lines.append(line)
+        
+        return '\n'.join(cleaned_lines)
+
     @staticmethod
     def create_email_template(template_name: str, user_data: dict, action_url: str = None, otp: str = None):
         """Create professional email templates with anti-spam content"""
@@ -116,7 +166,7 @@ class EmailService:
             <style>
                 /* Reset and base styles */
                 body, html {{ margin: 0; padding: 0; font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif; line-height: 1.6; color: #333333; background-color: #f6f9fc; }}
-                .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; }}
+                .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
                 .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; }}
                 .content {{ padding: 40px 30px; border-bottom: 1px solid #eaeaea; }}
                 .footer {{ padding: 30px; text-align: center; color: #666666; font-size: 12px; background: #f8f9fa; }}
@@ -129,13 +179,14 @@ class EmailService:
                 .mb-20 {{ margin-bottom: 20px; }}
                 .mt-20 {{ margin-top: 20px; }}
                 .small {{ font-size: 14px; color: #666666; }}
+                .legal {{ font-size: 11px; color: #999; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
                     <h1 style="margin: 0; font-size: 32px; font-weight: 700;">Salon Connect</h1>
-                    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Beauty & Wellness Services</p>
+                    <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Professional Beauty & Wellness Services</p>
                 </div>
                 
                 <div class="content">
@@ -145,11 +196,20 @@ class EmailService:
                 <div class="footer">
                     <p style="margin: 0 0 10px 0;">© 2024 Salon Connect. All rights reserved.</p>
                     <p style="margin: 0 0 10px 0;" class="small">
-                        This email was sent to {user_email} because you have an account with Salon Connect.
+                        This is a transactional email from Salon Connect sent to {user_email} regarding your account.
                     </p>
-                    <p style="margin: 0;" class="small">
-                        Salon Connect | Beauty & Wellness Services | Ghana
+                    <p style="margin: 0 0 10px 0;" class="small">
+                        Salon Connect | Professional Beauty Services | Ghana
                     </p>
+                    <div class="legal">
+                        <p style="margin: 0 0 5px 0;">
+                            This email was sent to {user_email} because you have an account with Salon Connect or requested this action.
+                            If you believe you received this email in error, please contact our support team.
+                        </p>
+                        <p style="margin: 0;">
+                            Our mailing address is: Salon Connect, Accra, Ghana
+                        </p>
+                    </div>
                 </div>
             </div>
         </body>
@@ -158,84 +218,92 @@ class EmailService:
         
         templates = {
             "verification": {
-                "subject": "Verify Your Email Address - Salon Connect",
+                "subject": "Verify Your Salon Connect Account",
                 "content": f"""
-                    <h2 style="color: #2c3e50; margin-bottom: 20px;">Welcome to Salon Connect, {user_data.get('first_name', 'there')}! 👋</h2>
+                    <h2 style="color: #2c3e50; margin-bottom: 20px;">Welcome to Salon Connect, {user_data.get('first_name', 'there')}!</h2>
+                    
+                    <p>Thank you for choosing Salon Connect - your gateway to professional beauty and wellness services.</p>
                     
                     <div class="notice">
                         <h3 style="margin-top: 0; color: #2c3e50;">Complete Your Registration</h3>
-                        <p style="margin-bottom: 0;">Thank you for choosing Salon Connect. To activate your account and start booking appointments, please verify your email address.</p>
+                        <p style="margin-bottom: 0;">To activate your account and start booking appointments, please verify your email address by clicking the button below:</p>
                     </div>
                     
                     <div class="text-center">
-                        <a href="{action_url}" class="button">Verify Email Address</a>
+                        <a href="{action_url}" class="button" style="color: white; text-decoration: none;">Verify Email Address</a>
                     </div>
                     
                     <div class="warning">
-                        <strong>⚠️ Important:</strong> This verification link expires in 24 hours.
+                        <strong>Important Security Notice:</strong> This verification link expires in 24 hours. Please verify your email promptly to secure your account.
                     </div>
+                    
+                    <p class="small">If the button doesn't work, copy and paste this link into your browser:</p>
+                    <p class="small" style="word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px;">{action_url}</p>
                     
                     <div class="spam-alert">
-                        <strong>📧 Email not in inbox?</strong><br>
-                        If you don't see this email in your inbox within 5 minutes, please:
-                        <ul>
-                            <li>Check your <strong>spam</strong> or <strong>junk</strong> folder</li>
-                            <li>Mark this email as <strong>"Not Spam"</strong></li>
-                            <li>Add <strong>{settings.FROM_EMAIL}</strong> to your contacts</li>
-                        </ul>
+                        <strong>Email Delivery Tip:</strong> To ensure you receive all important communications from Salon Connect, please add <strong>{settings.FROM_EMAIL}</strong> to your contacts or safe senders list.
                     </div>
                     
-                    <p class="small">If you didn't create this account, please ignore this email or contact our support team.</p>
+                    <p class="small">If you didn't create this account, please ignore this email or contact our support team for assistance.</p>
                 """
             },
             "password_reset": {
-                "subject": "Reset Your Password - Salon Connect",
+                "subject": "Salon Connect - Password Reset Request",
                 "content": f"""
                     <h2 style="color: #2c3e50; margin-bottom: 20px;">Password Reset Request</h2>
                     
+                    <p>Hello {user_data.get('first_name', 'there')},</p>
+                    
                     <div class="warning">
                         <h3 style="margin-top: 0; color: #856404;">Security Notice</h3>
-                        <p style="margin-bottom: 0;">We received a request to reset your password for your Salon Connect account.</p>
+                        <p style="margin-bottom: 0;">We received a request to reset your password for your Salon Connect account. If this wasn't you, please ignore this email.</p>
                     </div>
                     
                     <div class="text-center">
-                        <a href="{action_url}" class="button">Reset Password</a>
+                        <a href="{action_url}" class="button" style="color: white; text-decoration: none;">Reset Password</a>
                     </div>
                     
                     <div class="warning">
-                        <strong>⏰ Time-sensitive:</strong> This reset link expires in 1 hour for security reasons.
+                        <strong>Time-sensitive Action:</strong> This reset link expires in 1 hour for security reasons. Please reset your password promptly.
                     </div>
+                    
+                    <p class="small">If the button doesn't work, copy and paste this link into your browser:</p>
+                    <p class="small" style="word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px;">{action_url}</p>
+                    
+                    <p class="small">For your security, this password reset link can only be used once and will expire after use.</p>
                     
                     <div class="spam-alert">
-                        <strong>📧 Can't find this email?</strong><br>
-                        Please check your spam folder and mark this email as "Not Spam" to ensure you receive important account notifications.
+                        <strong>Account Security:</strong> If you didn't request this password reset, your account may be at risk. Please contact our support team immediately.
                     </div>
-                    
-                    <p class="small">If you didn't request this password reset, please ignore this email. Your account remains secure.</p>
                 """
             },
             "otp": {
-                "subject": "Your Login Code - Salon Connect",
+                "subject": "Your Salon Connect Verification Code",
                 "content": f"""
-                    <h2 style="color: #2c3e50; margin-bottom: 20px;">Your Login Verification Code</h2>
+                    <h2 style="color: #2c3e50; margin-bottom: 20px;">Login Verification Code</h2>
+                    
+                    <p>Hello {user_data.get('first_name', 'there')},</p>
                     
                     <div class="notice">
-                        <p style="margin-bottom: 15px;">Hello {user_data.get('first_name', 'there')}, use the following One-Time Password to log in to your Salon Connect account:</p>
+                        <p style="margin-bottom: 15px;">You've requested to log in to your Salon Connect account. Use the following verification code to complete your login:</p>
                     </div>
                     
                     <div class="otp-code">{otp}</div>
                     
                     <div class="warning">
-                        <strong>⏰ Expires in 10 minutes</strong><br>
-                        This code will expire for security reasons. Do not share this code with anyone.
+                        <strong>Security Information:</strong> 
+                        <ul>
+                            <li>This code expires in 10 minutes</li>
+                            <li>Do not share this code with anyone</li>
+                            <li>Salon Connect will never ask for this code via phone or email</li>
+                        </ul>
                     </div>
+                    
+                    <p>If you didn't request this login code, please secure your account by changing your password immediately.</p>
                     
                     <div class="spam-alert">
-                        <strong>📧 Not seeing our emails?</strong><br>
-                        To ensure you receive all important communications, please add <strong>{settings.FROM_EMAIL}</strong> to your safe senders list.
+                        <strong>Email Delivery:</strong> To ensure you receive all important account notifications, please add <strong>{settings.FROM_EMAIL}</strong> to your safe senders list.
                     </div>
-                    
-                    <p class="small">If you didn't request this login code, please ignore this email and consider changing your password.</p>
                 """
             }
         }
@@ -248,6 +316,7 @@ class EmailService:
             content=template["content"],
             user_email=user_email
         ), template["subject"]
+
 
     @staticmethod
     def send_verification_email(user, verification_url: str):
