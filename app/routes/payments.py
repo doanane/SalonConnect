@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 import json
 import hmac
 import hashlib
+import uuid
+from datetime import datetime
 
 from app.database import get_db
 from app.schemas.payment import PaymentResponse, PaymentInitiate, PaymentVerification
@@ -12,6 +14,69 @@ from app.core.config import settings
 
 router = APIRouter()
 
+# Background task functions - ADD THESE
+def process_successful_payment(db: Session, reference: str, data: dict):
+    """Process successful payment in background"""
+    try:
+        print(f"✅ [TEST MODE] Processing successful payment for reference: {reference}")
+        
+        # Find payment by reference
+        from app.models.payment import Payment, PaymentStatus
+        from app.models.booking import BookingStatus
+        
+        payment = db.query(Payment).filter(Payment.reference == reference).first()
+        if payment:
+            payment.status = PaymentStatus.SUCCESSFUL
+            payment.paystack_reference = data.get('reference', reference)
+            payment.paid_at = datetime.now()
+            payment.payment_data = json.dumps(data)
+            
+            # Update booking status
+            if payment.booking:
+                payment.booking.status = BookingStatus.CONFIRMED
+            
+            db.commit()
+            print(f"✅ [TEST MODE] Payment {reference} marked as successful")
+            
+            # Send confirmation email
+            from app.services.email import EmailService
+            try:
+                EmailService.send_payment_confirmation(
+                    payment.booking.customer, 
+                    payment, 
+                    payment.booking
+                )
+                print(f"✅ [TEST MODE] Payment confirmation email sent for {reference}")
+            except Exception as email_error:
+                print(f"⚠️ [TEST MODE] Failed to send payment confirmation email: {email_error}")
+        else:
+            print(f"❌ [TEST MODE] Payment not found for reference: {reference}")
+            
+    except Exception as e:
+        print(f"❌ [TEST MODE] Error processing successful payment: {e}")
+        db.rollback()
+
+def process_failed_payment(db: Session, reference: str, data: dict):
+    """Process failed payment in background"""
+    try:
+        print(f"❌ [TEST MODE] Processing failed payment for reference: {reference}")
+        
+        from app.models.payment import Payment, PaymentStatus
+        
+        payment = db.query(Payment).filter(Payment.reference == reference).first()
+        if payment:
+            payment.status = PaymentStatus.FAILED
+            payment.payment_data = json.dumps(data)
+            db.commit()
+            print(f"❌ [TEST MODE] Payment {reference} marked as failed")
+        else:
+            print(f"❌ [TEST MODE] Payment not found for reference: {reference}")
+            
+    except Exception as e:
+        print(f"❌ [TEST MODE] Error processing failed payment: {e}")
+        db.rollback()
+
+# Your existing routes
 @router.post("/initiate", response_model=dict)
 def initiate_payment(
     payment_data: PaymentInitiate,
@@ -54,76 +119,6 @@ def get_payment(
         )
     
     return payment
-
-@router.get("/webhook/test-connection")
-async def test_webhook_connection():
-    """Test if webhook endpoint is accessible from Paystack"""
-    return {
-        "status": "success",
-        "message": "Webhook endpoint is accessible",
-        "test_mode": True,
-        "webhook_url": "https://salonconnect-qzne.onrender.com/api/payments/webhook/paystack",
-        "instructions": "Use this URL in Paystack dashboard webhook settings"
-    }
-
-@router.post("/webhook/simulate-paystack")
-async def simulate_paystack_webhook(
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    """Simulate a Paystack webhook event for testing"""
-    import uuid
-    
-    # Create a test reference
-    test_reference = f"test_{uuid.uuid4().hex[:8]}"
-    
-    # Simulate Paystack webhook payload
-    test_payload = {
-        "event": "charge.success",
-        "data": {
-            "id": 123456789,
-            "domain": "test",
-            "status": "success",
-            "reference": test_reference,
-            "amount": 5000,  # 50 GHS in pesewas
-            "message": "Successful",
-            "gateway_response": "Successful",
-            "paid_at": "2024-01-01T12:00:00.000Z",
-            "created_at": "2024-01-01T11:00:00.000Z",
-            "channel": "card",
-            "currency": "GHS",
-            "ip_address": "127.0.0.1",
-            "metadata": {
-                "booking_id": 1,
-                "customer_id": 1,
-                "test_mode": True
-            },
-            "fees": 50,
-            "customer": {
-                "id": 12345,
-                "first_name": "Test",
-                "last_name": "User",
-                "email": "test@example.com"
-            }
-        }
-    }
-    
-    print(f"🧪 [TEST MODE] Simulating Paystack webhook: {test_payload}")
-    
-    # Process the simulated webhook
-    background_tasks.add_task(
-        process_successful_payment,
-        db,
-        test_reference,
-        test_payload['data']
-    )
-    
-    return {
-        "status": "success",
-        "message": "Test webhook simulated",
-        "reference": test_reference,
-        "test_payload": test_payload
-    }
 
 @router.post("/webhook/paystack")
 async def paystack_webhook(
@@ -224,3 +219,112 @@ async def paystack_webhook(
         # Always return 200 in test mode to prevent retries
         return {"status": "success", "message": f"Error but acknowledged: {str(e)}"}
 
+@router.get("/webhook/test-connection")
+async def test_webhook_connection():
+    """Test if webhook endpoint is accessible from Paystack"""
+    return {
+        "status": "success",
+        "message": "Webhook endpoint is accessible",
+        "test_mode": True,
+        "webhook_url": "https://salonconnect-qzne.onrender.com/api/payments/webhook/paystack",
+        "instructions": "Use this URL in Paystack dashboard webhook settings"
+    }
+
+@router.post("/webhook/simulate-paystack")
+async def simulate_paystack_webhook(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Simulate a Paystack webhook event for testing"""
+    # Create a test reference
+    test_reference = f"test_{uuid.uuid4().hex[:8]}"
+    
+    # Simulate Paystack webhook payload
+    test_payload = {
+        "event": "charge.success",
+        "data": {
+            "id": 123456789,
+            "domain": "test",
+            "status": "success",
+            "reference": test_reference,
+            "amount": 5000,  # 50 GHS in pesewas
+            "message": "Successful",
+            "gateway_response": "Successful",
+            "paid_at": "2024-01-01T12:00:00.000Z",
+            "created_at": "2024-01-01T11:00:00.000Z",
+            "channel": "card",
+            "currency": "GHS",
+            "ip_address": "127.0.0.1",
+            "metadata": {
+                "booking_id": 1,
+                "customer_id": 1,
+                "test_mode": True
+            },
+            "fees": 50,
+            "customer": {
+                "id": 12345,
+                "first_name": "Test",
+                "last_name": "User",
+                "email": "test@example.com"
+            }
+        }
+    }
+    
+    print(f"🧪 [TEST MODE] Simulating Paystack webhook: {test_payload}")
+    
+    # Process the simulated webhook
+    background_tasks.add_task(
+        process_successful_payment,
+        db,
+        test_reference,
+        test_payload['data']
+    )
+    
+    return {
+        "status": "success",
+        "message": "Test webhook simulated",
+        "reference": test_reference,
+        "test_payload": test_payload
+    }
+
+@router.get("/webhook/create-test-payment")
+async def create_test_payment(db: Session = Depends(get_db)):
+    """Create a test payment record for webhook testing"""
+    try:
+        from app.models.payment import Payment, PaymentStatus, PaymentMethod
+        from app.models.booking import Booking
+        from app.models.user import User
+        
+        # Get first user and booking for testing
+        test_user = db.query(User).first()
+        test_booking = db.query(Booking).first()
+        
+        if not test_user or not test_booking:
+            return {"error": "Need users and bookings in database first"}
+        
+        # Create test payment
+        test_reference = f"test_{uuid.uuid4().hex[:8]}"
+        test_payment = Payment(
+            booking_id=test_booking.id,
+            reference=test_reference,
+            amount=50.0,  # 50 GHS
+            currency="GHS",
+            payment_method=PaymentMethod.PAYSTACK,
+            status=PaymentStatus.PENDING
+        )
+        
+        db.add(test_payment)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": "Test payment created",
+            "payment_reference": test_reference,
+            "booking_id": test_booking.id,
+            "user_id": test_user.id,
+            "amount": 50.0,
+            "currency": "GHS"
+        }
+        
+    except Exception as e:
+        return {"error": f"Failed to create test payment: {str(e)}"}
