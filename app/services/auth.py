@@ -313,3 +313,41 @@ class AuthService:
             "recent_bookings": [],
             "salon_performance": []
         }
+
+    @staticmethod
+    async def register_google_user(db: Session, user_data: UserCreate, google_user: dict):
+        try:
+            existing_user = db.query(User).filter(User.email == user_data.email).first()
+            
+            if existing_user:
+                existing_user.first_name = user_data.first_name
+                existing_user.last_name = user_data.last_name
+                existing_user.is_verified = True
+                db.commit()
+                db.refresh(existing_user)
+                return existing_user
+            
+            hashed_password = get_password_hash(user_data.password)
+            user = User(
+                email=user_data.email,
+                password=hashed_password,
+                first_name=user_data.first_name,
+                last_name=user_data.last_name,
+                role=user_data.role,
+                is_verified=True,
+                is_active=True
+            )
+            
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+            profile = UserProfile(user_id=user.id)
+            db.add(profile)
+            db.commit()
+            
+            return user
+            
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")

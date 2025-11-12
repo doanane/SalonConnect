@@ -1,88 +1,52 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.openapi.utils import get_openapi
-from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
+from starlette.middleware.sessions import SessionMiddleware
 import os
 import asyncio
 import httpx
-import time
-from app.routes import favorites
-
-from app.database import engine
-from app.models.user import User, UserProfile
-from app.models.salon import Salon, Service, Review, SalonImage
-from app.models.booking import Booking, BookingItem
-from app.models.payment import Payment
-
 from app.routes import auth, users, salons, bookings, payments, vendor, favorites, google_oauth
-
-async def create_tables_in_background():
-    """Create database tables in the background without blocking app startup"""
-    print("🛠️ Starting background table creation...")
-    try:
-        # Small delay to ensure app is responsive first
-        await asyncio.sleep(2)
-        
-        User.metadata.create_all(bind=engine)
-        UserProfile.metadata.create_all(bind=engine)
-        Salon.metadata.create_all(bind=engine)
-        Service.metadata.create_all(bind=engine)
-        Review.metadata.create_all(bind=engine)
-        SalonImage.metadata.create_all(bind=engine)
-        Booking.metadata.create_all(bind=engine)
-        BookingItem.metadata.create_all(bind=engine)
-        Payment.metadata.create_all(bind=engine)
-        print("✅ All production tables created successfully!")
-    except Exception as e:
-        print(f"❌ Error creating tables: {e}")
+from app.core.config import settings
 
 async def keep_alive():
-    """Ping the app every 10 minutes to prevent Render sleep"""
-  
+    if not settings.IS_PRODUCTION:
+        return
+        
     await asyncio.sleep(30)
-    
     while True:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # Try multiple endpoints in case one fails
                 endpoints = [
-                    "https://salonconnect-qzne.onrender.com/health",
-                    "https://salonconnect-qzne.onrender.com/",
-                    "https://salonconnect-qzne.onrender.com/ping"
+                    f"{settings.CURRENT_BASE_URL}/health",
+                    f"{settings.CURRENT_BASE_URL}/",
+                    f"{settings.CURRENT_BASE_URL}/ping"
                 ]
-                
                 for endpoint in endpoints:
                     try:
                         response = await client.get(endpoint)
-                        print(f"✅ Keep-alive ping successful to {endpoint} - Status: {response.status_code}")
-                        break  # If one works, no need to try others
+                        print(f"✅ Keep-alive ping to {endpoint} - Status: {response.status_code}")
+                        break
                     except Exception as e:
-                        print(f"⚠️  Ping failed for {endpoint}: {e}")
+                        print(f"⚠️ Ping failed for {endpoint}: {e}")
                         continue
-                else:
-                    print("❌ All ping attempts failed")
-                    
         except Exception as e:
             print(f"❌ Keep-alive ping failed: {e}")
-        
-        # Wait 10 minutes before next ping
         await asyncio.sleep(600)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Just start keep-alive, tables should be created via migrations
-    print("🚀 Starting keep-alive service...")
-    keep_alive_task = asyncio.create_task(keep_alive())
+    # No database initialization - just startup logging
+    print("🚀 Salon Connect API Starting...")
     
-    yield
-    
-    # Cleanup
-    keep_alive_task.cancel()
-
-security_scheme = HTTPBearer()
+    # Start keep-alive only in production
+    if settings.IS_PRODUCTION:
+        print("🚀 Starting production keep-alive service...")
+        keep_alive_task = asyncio.create_task(keep_alive())
+        yield
+        keep_alive_task.cancel()
+    else:
+        print("🔧 Development mode - no keep-alive")
+        yield
 
 app = FastAPI(
     title="Salon Connect API",
@@ -93,17 +57,25 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Session middleware for OAuth
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://saloonconnect.vercel.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Include routers
 app.include_router(auth.router, prefix="/api/users", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
-# app.include_router(google_oauth.router, prefix="/api/users", tags=["Google Authentication"])
+app.include_router(google_oauth.router, prefix="/api/auth", tags=["Google OAuth"])
 app.include_router(salons.router, prefix="/api/salons", tags=["Salons"])
 app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
@@ -115,12 +87,17 @@ async def root():
     return {
         "message": "Welcome to Salon Connect API", 
         "status": "healthy",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "environment": "production" if settings.IS_PRODUCTION else "development"
     }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "message": "Salon Connect API is running"}
+    return {
+        "status": "healthy", 
+        "message": "Salon Connect API is running",
+        "environment": "production" if settings.IS_PRODUCTION else "development"
+    }
 
 @app.get("/ping")
 async def ping():
@@ -128,4 +105,5 @@ async def ping():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=not settings.IS_PRODUCTION)
