@@ -35,10 +35,8 @@ async def keep_alive():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # No database initialization - just startup logging
     print("🚀 Salon Connect API Starting...")
     
-    # Start keep-alive only in production
     if settings.IS_PRODUCTION:
         print("🚀 Starting production keep-alive service...")
         keep_alive_task = asyncio.create_task(keep_alive())
@@ -57,25 +55,34 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Session middleware for OAuth
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="salonconnect_oauth_session",
+    max_age=3600,  
+    same_site="lax", 
+    https_only=settings.IS_PRODUCTION,
+    domain=None, 
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://saloonconnect.vercel.app",
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        settings.CURRENT_BASE_URL
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
+
 app.include_router(auth.router, prefix="/api/users", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
-app.include_router(google_oauth.router, prefix="/api/auth", tags=["Google OAuth"])
+app.include_router(google_oauth.router, prefix="/api/auth", tags=["Google OAuth"])  
 app.include_router(salons.router, prefix="/api/salons", tags=["Salons"])
 app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
@@ -90,6 +97,18 @@ async def root():
         "version": "1.0.0",
         "environment": "production" if settings.IS_PRODUCTION else "development"
     }
+
+@app.get("/debug-routes")
+async def debug_routes():
+    routes = []
+    for route in app.routes:
+        if hasattr(route, "methods") and hasattr(route, "path"):
+            routes.append({
+                "path": route.path,
+                "methods": list(route.methods),
+                "name": getattr(route, "name", "Unknown")
+            })
+    return {"routes": routes}    
 
 @app.get("/health")
 async def health_check():

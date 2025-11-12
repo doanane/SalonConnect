@@ -16,8 +16,6 @@ from app.routes import google_oauth
 router = APIRouter()
 security = HTTPBearer()
 
-# Include Google OAuth routes
-router.include_router(google_oauth.router, prefix="/api/users", tags=["Google OAuth"])
 
 
 
