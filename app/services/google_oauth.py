@@ -1,11 +1,7 @@
-from authlib.integrations.starlette_client import OAuth
+from authlib.integrations.starlette_client import OAuth, OAuthError
 from fastapi import HTTPException, Request
 from app.core.config import settings
-import secrets
-import time
-import json
 
-# Initialize OAuth
 oauth = OAuth()
 
 def setup_google_oauth():
@@ -39,7 +35,6 @@ oauth_configured = setup_google_oauth()
 class GoogleOAuthService:
     @staticmethod
     async def get_authorization_url(request: Request):
-        """Generate Google OAuth authorization URL with manual state handling"""
         try:
             if not oauth_configured:
                 raise HTTPException(status_code=500, detail="Google OAuth not configured properly")
@@ -81,7 +76,6 @@ class GoogleOAuthService:
 
     @staticmethod
     async def handle_callback(request: Request):
-        """Handle Google OAuth callback with manual state verification"""
         try:
             print(" Processing OAuth callback...")
             print(f"Full callback URL: {request.url}")
@@ -158,26 +152,20 @@ class GoogleOAuthService:
             
             print(f" User authenticated: {user_info.email}")
             
-            # Clean up session
-            if 'oauth_state' in request.session:
-                del request.session['oauth_state']
-            if 'oauth_timestamp' in request.session:
-                del request.session['oauth_timestamp']
-            if 'oauth_flow_started' in request.session:
-                del request.session['oauth_flow_started']
+            print(f"🚀 [PRODUCTION] User authenticated: {user_info.email}")
             
             return {
                 'email': user_info.email,
-                'first_name': user_info.given_name or '',
-                'last_name': user_info.family_name or '',
-                'picture': user_info.picture or '',
+                'first_name': user_info.given_name,
+                'last_name': user_info.family_name,
+                'picture': user_info.picture,
                 'google_id': user_info.sub,
-                'email_verified': user_info.email_verified or False
+                'email_verified': user_info.email_verified
             }
             
-        except HTTPException:
-            # Re-raise HTTP exceptions
-            raise
+        except OAuthError as e:
+            print(f"❌ OAuthError: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"OAuth error: {str(e)}")
         except Exception as e:
             print(f"OAuth callback error: {e}")
             import traceback

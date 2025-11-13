@@ -9,7 +9,7 @@ class UserRole(str, enum.Enum):
     VENDOR = "vendor"
     ADMIN = "admin"
 
-# Association table for user favorites
+
 user_favorites = Table(
     'user_favorites',
     Base.metadata,
@@ -33,7 +33,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Relationships
+    
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     salons = relationship("Salon", back_populates="owner")
     bookings = relationship("Booking", back_populates="customer")
@@ -66,7 +66,7 @@ class PasswordReset(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    token = Column(Text, nullable=False)  # CHANGED FROM String(255) to Text for longer tokens
+    token = Column(Text, nullable=False)  
     expires_at = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -84,7 +84,7 @@ class PendingUser(Base):
     first_name = Column(String(100))
     last_name = Column(String(100))
     role = Column(Enum(UserRole), default=UserRole.CUSTOMER)
-    verification_token = Column(Text, nullable=False)  # CHANGED FROM String(255) to Text
+    verification_token = Column(Text, nullable=False)  
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
