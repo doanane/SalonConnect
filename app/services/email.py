@@ -16,16 +16,18 @@ class EmailService:
             print(f" [SENDGRID] From: {settings.FROM_EMAIL}")
             print(f" [SENDGRID] Subject: {subject}")
             
-            if not settings.SENDGRID_API_KEY:
-                print("[SENDGRID] Missing SENDGRID_API_KEY")
-                return False
+            
+     
             
             if not settings.FROM_EMAIL:
                 print("[SENDGRID] Missing FROM_EMAIL")
                 return False
 
-        
+            
             url = "https://api.sendgrid.com/v3/mail/send"
+            
+            
+        
             
         
             headers = {
@@ -91,7 +93,6 @@ class EmailService:
             
             print(f" [SENDGRID] Sending email via SendGrid API...")
             
-            # Send request with timeout
             response = requests.post(url, json=data, headers=headers, timeout=30)
             
             if response.status_code == 202:
@@ -532,7 +533,6 @@ class EmailService:
             print(f"Error sending payment confirmation: {e}")
             return False
 
-    # Token generation methods
     @staticmethod
     def generate_verification_token(email: str) -> str:
         payload = {
