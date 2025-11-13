@@ -27,16 +27,15 @@ async def keep_alive():
                         print(f" Keep-alive ping to {endpoint} - Status: {response.status_code}")
                         break
                     except Exception as e:
-                        print(f"⚠️ Ping failed for {endpoint}: {e}")
+                        print(f" Ping failed for {endpoint}: {e}")
                         continue
         except Exception as e:
-            print(f"❌ Keep-alive ping failed: {e}")
+            print(f"Keep-alive ping failed: {e}")
         await asyncio.sleep(600)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # No database initialization - just startup logging
-    print("🚀 Salon Connect API Starting...")
+    print(" Salon Connect API Starting...")
     
     # Start keep-alive only in production
     if settings.IS_PRODUCTION:

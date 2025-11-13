@@ -25,7 +25,7 @@ def fix_token_columns():
         print(" Successfully updated token columns to TEXT")
         return True
     except Exception as e:
-        print(f"❌ Error updating token columns: {str(e)}")
+        print(f"Error updating token columns: {str(e)}")
         return False
 
 if __name__ == "__main__":
