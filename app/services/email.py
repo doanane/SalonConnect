@@ -12,30 +12,29 @@ class EmailService:
     def send_email(to_email: str, subject: str, html_content: str) -> bool:
         """Send email using SendGrid API with comprehensive anti-spam measures"""
         try:
-            print(f"🔧 [SENDGRID] Starting email send to: {to_email}")
-            print(f"🔧 [SENDGRID] From: {settings.FROM_EMAIL}")
-            print(f"🔧 [SENDGRID] Subject: {subject}")
+            print(f" [SENDGRID] Starting email send to: {to_email}")
+            print(f" [SENDGRID] From: {settings.FROM_EMAIL}")
+            print(f" [SENDGRID] Subject: {subject}")
             
-            # Validate configuration
             if not settings.SENDGRID_API_KEY:
-                print("❌ [SENDGRID] Missing SENDGRID_API_KEY")
+                print("[SENDGRID] Missing SENDGRID_API_KEY")
                 return False
             
             if not settings.FROM_EMAIL:
-                print("❌ [SENDGRID] Missing FROM_EMAIL")
+                print("[SENDGRID] Missing FROM_EMAIL")
                 return False
 
-            # SendGrid API endpoint
+        
             url = "https://api.sendgrid.com/v3/mail/send"
             
-            # Headers
+        
             headers = {
                 "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
                 "Content-Type": "application/json",
                 "User-Agent": "SalonConnect-API/1.0"
             }
             
-            # FIXED: Content order - text/plain must come first
+        
             data = {
                 "personalizations": [{
                     "to": [{"email": to_email}],
@@ -90,27 +89,27 @@ class EmailService:
                 }
             }
             
-            print(f"🔧 [SENDGRID] Sending email via SendGrid API...")
+            print(f" [SENDGRID] Sending email via SendGrid API...")
             
             # Send request with timeout
             response = requests.post(url, json=data, headers=headers, timeout=30)
             
             if response.status_code == 202:
-                print(f"✅ [SENDGRID] Email sent successfully! Status: {response.status_code}")
+                print(f" [SENDGRID] Email sent successfully! Status: {response.status_code}")
                 return True
             else:
-                print(f"❌ [SENDGRID] Failed to send email. Status: {response.status_code}")
+                print(f"[SENDGRID] Failed to send email. Status: {response.status_code}")
                 error_response = response.json()
-                print(f"❌ [SENDGRID] Error details: {error_response}")
+                print(f"[SENDGRID] Error details: {error_response}")
                 return False
             
         except requests.exceptions.Timeout:
-            print(f"❌ [SENDGRID] Request timeout - email might still be sent")
+            print(f"[SENDGRID] Request timeout - email might still be sent")
             return True
         except Exception as e:
-            print(f"❌ [SENDGRID] Error sending email: {str(e)}")
+            print(f"[SENDGRID] Error sending email: {str(e)}")
             import traceback
-            print(f"❌ [SENDGRID] Traceback: {traceback.format_exc()}")
+            print(f"[SENDGRID] Traceback: {traceback.format_exc()}")
             return False
 
     @staticmethod
@@ -293,7 +292,7 @@ class EmailService:
             "verification", user_data, action_url=verification_url
         )
         
-        print(f"📧 [SENDGRID] Sending verification email to: {user_data['email']}")
+        print(f"[SENDGRID] Sending verification email to: {user_data['email']}")
         return EmailService.send_email(user_data['email'], subject, html_content)
 
     @staticmethod
@@ -308,7 +307,7 @@ class EmailService:
             "password_reset", user_data, action_url=reset_url
         )
         
-        print(f"📧 [SENDGRID] Sending password reset email to: {user_data['email']}")
+        print(f"[SENDGRID] Sending password reset email to: {user_data['email']}")
         return EmailService.send_email(user_data['email'], subject, html_content)
 
     @staticmethod
@@ -323,7 +322,7 @@ class EmailService:
             "otp", user_data, otp=otp
         )
         
-        print(f"📧 [SENDGRID] Sending OTP email to: {user_data['email']}")
+        print(f"[SENDGRID] Sending OTP email to: {user_data['email']}")
         return EmailService.send_email(user_data['email'], subject, html_content)
 
     @staticmethod
@@ -394,10 +393,10 @@ class EmailService:
             
             subject = "Booking Confirmation - Salon Connect"
             
-            print(f"📧 [SENDGRID] Sending booking confirmation to: {user_data['email']}")
+            print(f"[SENDGRID] Sending booking confirmation to: {user_data['email']}")
             return EmailService.send_email(user_data['email'], subject, html_content)
         except Exception as e:
-            print(f"❌ Error sending booking confirmation: {e}")
+            print(f"Error sending booking confirmation: {e}")
             return False
 
     @staticmethod
@@ -433,7 +432,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>New Booking Received! 📅</h1>
+                        <h1>New Booking Received!</h1>
                         <p>Salon Connect</p>
                     </div>
                     <div class="content">
@@ -464,10 +463,10 @@ class EmailService:
             
             subject = "New Booking Received - Salon Connect"
             
-            print(f"📧 [SENDGRID] Sending booking notification to vendor: {user_data['email']}")
+            print(f"[SENDGRID] Sending booking notification to vendor: {user_data['email']}")
             return EmailService.send_email(user_data['email'], subject, html_content)
         except Exception as e:
-            print(f"❌ Error sending vendor notification: {e}")
+            print(f"Error sending vendor notification: {e}")
             return False
 
     @staticmethod
@@ -498,7 +497,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>Payment Confirmed! ✅</h1>
+                        <h1>Payment Confirmed! </h1>
                         <p>Salon Connect</p>
                     </div>
                     <div class="content">
@@ -527,10 +526,10 @@ class EmailService:
             
             subject = "Payment Confirmed - Salon Connect"
             
-            print(f"📧 [SENDGRID] Sending payment confirmation to: {user_data['email']}")
+            print(f"[SENDGRID] Sending payment confirmation to: {user_data['email']}")
             return EmailService.send_email(user_data['email'], subject, html_content)
         except Exception as e:
-            print(f"❌ Error sending payment confirmation: {e}")
+            print(f"Error sending payment confirmation: {e}")
             return False
 
     # Token generation methods
@@ -580,69 +579,3 @@ class EmailService:
     @staticmethod
     def generate_otp() -> str:
         return ''.join(random.choices(string.digits, k=6))
-
-    @staticmethod
-    def send_google_welcome_email(user):
-        """Send welcome email to users who register with Google"""
-        try:
-            subject = "Welcome to Salon Connect!"
-            
-            html_content = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                    .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
-                    .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
-                    .welcome {{ font-size: 24px; color: #667eea; margin-bottom: 20px; }}
-                    .role-badge {{ background: #667eea; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; margin: 10px 0; }}
-                    .features {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>💈 Welcome to Salon Connect!</h1>
-                    </div>
-                    <div class="content">
-                        <div class="welcome">Hello {user.first_name}!</div>
-                        
-                        <p>Thank you for joining Salon Connect with your Google account!</p>
-                        
-                        <p>You have registered as a: <span class="role-badge">{user.role.value.title() if hasattr(user.role, 'value') else user.role.title()}</span></p>
-                        
-                        <div class="features">
-                            <h3>🎉 What you can do now:</h3>
-                            <ul>
-                                {"<li>Browse and book salon services</li><li>Manage your appointments</li><li>Save favorite salons</li><li>Write reviews for salons</li>" if user.role.value == "customer" else ""}
-                                {"<li>Set up your salon profile</li><li>Manage your services and pricing</li><li>Handle customer bookings</li><li>Track your business performance</li>" if user.role.value == "vendor" else ""}
-                                {"<li>Manage platform operations</li><li>Monitor system performance</li><li>Support users and vendors</li>" if user.role.value == "admin" else ""}
-                            </ul>
-                        </div>
-                        
-                        <p><strong>Getting Started Tips:</strong></p>
-                        <ul>
-                            <li>Complete your profile to get personalized recommendations</li>
-                            <li>Explore salons and services in your area</li>
-                            <li>Book your first appointment easily</li>
-                        </ul>
-                        
-                        <p>We're excited to have you on board!</p>
-                        
-                        <p><strong>Happy styling! 🎉</strong></p>
-                        
-                        <p><small>If you have any questions, feel free to reply to this email or visit our help center.</small></p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-            
-            # Send email
-            EmailService.send_email(user.email, subject, html_content)
-            
-        except Exception as e:
-            print(f"❌ Error sending Google welcome email: {e}")
-            # Don't raise exception - email failure shouldn't break registration

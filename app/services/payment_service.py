@@ -67,7 +67,7 @@ class PaymentService:
             
             if response.status_code == 200:
                 data = response.json()
-                print(f"✅ [TEST MODE] Payment initialized: {data}")
+                print(f" [TEST MODE] Payment initialized: {data}")
                 return {
                     "payment_reference": payment_reference,
                     "authorization_url": data['data']['authorization_url'],
