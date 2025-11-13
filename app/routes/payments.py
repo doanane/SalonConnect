@@ -48,18 +48,18 @@ def process_successful_payment(db: Session, reference: str, data: dict):
                 )
                 print(f" [TEST MODE] Payment confirmation email sent for {reference}")
             except Exception as email_error:
-                print(f"⚠️ [TEST MODE] Failed to send payment confirmation email: {email_error}")
+                print(f" [TEST MODE] Failed to send payment confirmation email: {email_error}")
         else:
-            print(f"❌ [TEST MODE] Payment not found for reference: {reference}")
+            print(f"[TEST MODE] Payment not found for reference: {reference}")
             
     except Exception as e:
-        print(f"❌ [TEST MODE] Error processing successful payment: {e}")
+        print(f"[TEST MODE] Error processing successful payment: {e}")
         db.rollback()
 
 def process_failed_payment(db: Session, reference: str, data: dict):
     """Process failed payment in background"""
     try:
-        print(f"❌ [TEST MODE] Processing failed payment for reference: {reference}")
+        print(f"[TEST MODE] Processing failed payment for reference: {reference}")
         
         from app.models.payment import Payment, PaymentStatus
         
@@ -68,12 +68,12 @@ def process_failed_payment(db: Session, reference: str, data: dict):
             payment.status = PaymentStatus.FAILED
             payment.payment_data = json.dumps(data)
             db.commit()
-            print(f"❌ [TEST MODE] Payment {reference} marked as failed")
+            print(f"[TEST MODE] Payment {reference} marked as failed")
         else:
-            print(f"❌ [TEST MODE] Payment not found for reference: {reference}")
+            print(f"[TEST MODE] Payment not found for reference: {reference}")
             
     except Exception as e:
-        print(f"❌ [TEST MODE] Error processing failed payment: {e}")
+        print(f"[TEST MODE] Error processing failed payment: {e}")
         db.rollback()
 
 # Your existing routes
@@ -135,14 +135,14 @@ async def paystack_webhook(
         body = await request.body()
         body_str = body.decode('utf-8')
         
-        print(f"🔔 [TEST MODE] Webhook received")
-        print(f"🔔 [TEST MODE] Body: {body_str}")
-        print(f"🔔 [TEST MODE] Signature: {signature}")
+        print(f" [TEST MODE] Webhook received")
+        print(f" [TEST MODE] Body: {body_str}")
+        print(f" [TEST MODE] Signature: {signature}")
         
         # In test mode, Paystack often sends events without signatures
         # For test mode, we'll process events even without signatures
         if not signature:
-            print("⚠️ [TEST MODE] No signature - processing as test event")
+            print(" [TEST MODE] No signature - processing as test event")
             # Continue processing without signature verification in test mode
         
         else:
@@ -153,24 +153,24 @@ async def paystack_webhook(
                 hashlib.sha512
             ).hexdigest()
             
-            print(f"🔔 [TEST MODE] Computed signature: {computed_signature}")
+            print(f" [TEST MODE] Computed signature: {computed_signature}")
             
             if not hmac.compare_digest(computed_signature, signature):
-                print("❌ [TEST MODE] Invalid signature - but continuing in test mode")
+                print("[TEST MODE] Invalid signature - but continuing in test mode")
                 # In test mode, we continue even with invalid signature
         
         # Parse the webhook data
         try:
             event_data = json.loads(body_str)
         except json.JSONDecodeError:
-            print("❌ [TEST MODE] Invalid JSON - but acknowledging")
+            print("[TEST MODE] Invalid JSON - but acknowledging")
             return {"status": "success", "message": "Invalid JSON but acknowledged"}
         
         event_type = event_data.get('event')
         data = event_data.get('data', {})
         
-        print(f"🔔 [TEST MODE] Event type: {event_type}")
-        print(f"🔔 [TEST MODE] Event data: {json.dumps(data, indent=2)}")
+        print(f" [TEST MODE] Event type: {event_type}")
+        print(f" [TEST MODE] Event data: {json.dumps(data, indent=2)}")
         
         # Handle different event types
         if event_type == 'charge.success':
@@ -185,12 +185,12 @@ async def paystack_webhook(
                 )
                 return {"status": "success", "message": "Charge success processed"}
             else:
-                print("❌ [TEST MODE] No reference in charge.success event")
+                print("[TEST MODE] No reference in charge.success event")
         
         elif event_type == 'charge.failed':
             reference = data.get('reference')
             if reference:
-                print(f"❌ [TEST MODE] Processing failed charge: {reference}")
+                print(f"[TEST MODE] Processing failed charge: {reference}")
                 background_tasks.add_task(
                     process_failed_payment,
                     db,
@@ -200,7 +200,7 @@ async def paystack_webhook(
                 return {"status": "success", "message": "Charge failed processed"}
         
         elif event_type in ['transfer.success', 'transfer.failed', 'subscription.create']:
-            print(f"ℹ️ [TEST MODE] Unhandled but acknowledged: {event_type}")
+            print(f" [TEST MODE] Unhandled but acknowledged: {event_type}")
             return {"status": "success", "message": f"{event_type} acknowledged"}
         
         elif event_type == 'test' or 'test' in body_str.lower():
@@ -208,14 +208,14 @@ async def paystack_webhook(
             return {"status": "success", "message": "Test event received"}
         
         else:
-            print(f"ℹ️ [TEST MODE] Unhandled event type: {event_type}")
+            print(f" [TEST MODE] Unhandled event type: {event_type}")
             return {"status": "success", "message": "Event acknowledged but not handled"}
         
         # If we get here, return success anyway
         return {"status": "success", "message": "Webhook processed"}
         
     except Exception as e:
-        print(f"❌ [TEST MODE] Webhook error: {str(e)}")
+        print(f"[TEST MODE] Webhook error: {str(e)}")
         # Always return 200 in test mode to prevent retries
         return {"status": "success", "message": f"Error but acknowledged: {str(e)}"}
 
@@ -270,7 +270,7 @@ async def simulate_paystack_webhook(
         }
     }
     
-    print(f"🧪 [TEST MODE] Simulating Paystack webhook: {test_payload}")
+    print(f" [TEST MODE] Simulating Paystack webhook: {test_payload}")
     
     # Process the simulated webhook
     background_tasks.add_task(

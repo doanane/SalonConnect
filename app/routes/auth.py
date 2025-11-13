@@ -111,7 +111,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ [AUTH] Registration error: {str(e)}")
+        print(f"[AUTH] Registration error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Registration failed. Please try again."
@@ -159,7 +159,7 @@ def verify_email(request: Request, token: str = Query(...), db: Session = Depend
         return templates.TemplateResponse("email_verified.html", {"request": request})
         
     except Exception as e:
-        print(f"❌ [AUTH] Email verification error: {str(e)}")
+        print(f"[AUTH] Email verification error: {str(e)}")
         return HTMLResponse(f"""
         <!DOCTYPE html>
         <html>
@@ -171,7 +171,7 @@ def verify_email(request: Request, token: str = Query(...), db: Session = Depend
             </style>
         </head>
         <body>
-            <div class="error">❌ Verification Failed</div>
+            <div class="error">Verification Failed</div>
             <p>{str(e)}</p>
             <p><a href="{FRONTEND_URL}/register">Try registering again</a></p>
         </body>
@@ -203,7 +203,7 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
         
         # Send password reset email
         email_sent = EmailService.send_password_reset_email(user, reset_url)
-        print(f"📧 [AUTH] Password reset email sent status: {email_sent}")
+        print(f"[AUTH] Password reset email sent status: {email_sent}")
         
         return {
             "message": "Password reset link sent to your email.",
@@ -215,7 +215,7 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
         }
             
     except Exception as e:
-        print(f"❌ [AUTH] Forgot password error: {str(e)}")
+        print(f"[AUTH] Forgot password error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/reset-password-page", response_class=HTMLResponse)
@@ -255,7 +255,7 @@ def reset_password_page(request: Request, token: str = Query(...), db: Session =
         })
         
     except Exception as e:
-        print(f"❌ [AUTH] Reset password page error: {str(e)}")
+        print(f"[AUTH] Reset password page error: {str(e)}")
         return templates.TemplateResponse("reset_password.html", {
             "request": request, 
             "error": "An error occurred. Please try again.",
@@ -333,7 +333,7 @@ def reset_password(
         })
         
     except Exception as e:
-        print(f"❌ [AUTH] Password reset error: {str(e)}")
+        print(f"[AUTH] Password reset error: {str(e)}")
         return templates.TemplateResponse("reset_password.html", {
             "request": request, 
             "error": "An error occurred. Please try again.",
@@ -362,14 +362,14 @@ def resend_verification(email: str, db: Session = Depends(get_db)):
         
         # Send verification email
         email_sent = EmailService.send_verification_email(temp_user, verification_url)
-        print(f"📧 [AUTH] Resend verification email sent status: {email_sent}")
+        print(f"[AUTH] Resend verification email sent status: {email_sent}")
         
         return {
             "message": "Verification email sent successfully",
             "email_sent": email_sent
         }
     except Exception as e:
-        print(f"❌ [AUTH] Resend verification error: {str(e)}")
+        print(f"[AUTH] Resend verification error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/login", response_model=Token)
@@ -397,7 +397,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ [AUTH] Login error: {str(e)}")
+        print(f"[AUTH] Login error: {str(e)}")
         raise HTTPException(status_code=401, detail="Login failed")
 
 @router.post("/login/otp/request")
@@ -442,7 +442,7 @@ def request_otp_login(request: OTPLoginRequest, db: Session = Depends(get_db)):
             "email_sent": email_sent
         }
     except Exception as e:
-        print(f"❌ [AUTH] OTP request error: {str(e)}")
+        print(f"[AUTH] OTP request error: {str(e)}")
         raise HTTPException(status_code=400, detail="Failed to send OTP")
 
 @router.post("/login/otp/verify", response_model=Token)
@@ -474,7 +474,7 @@ def verify_otp_login(request: OTPVerifyRequest, db: Session = Depends(get_db)):
         
         return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
     except Exception as e:
-        print(f"❌ [AUTH] OTP verify error: {str(e)}")
+        print(f"[AUTH] OTP verify error: {str(e)}")
         raise HTTPException(status_code=400, detail="OTP verification failed")
 
 @router.post("/change-password")
@@ -493,7 +493,7 @@ def change_password(
         
         return {"message": "Password changed successfully"}
     except Exception as e:
-        print(f"❌ [AUTH] Change password error: {str(e)}")
+        print(f"[AUTH] Change password error: {str(e)}")
         raise HTTPException(status_code=400, detail="Password change failed")
 
 @router.post("/token/refresh", response_model=Token)
@@ -512,7 +512,7 @@ def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
         new_access_token = create_access_token(data={"user_id": user.id, "email": user.email})
         return Token(access_token=new_access_token, refresh_token=refresh_token, token_type="bearer")
     except Exception as e:
-        print(f"❌ [AUTH] Token refresh error: {str(e)}")
+        print(f"[AUTH] Token refresh error: {str(e)}")
         raise HTTPException(status_code=401, detail="Token refresh failed")
 
 @router.get("/token/verify")
@@ -528,7 +528,7 @@ def verify_token_endpoint(credentials: HTTPAuthorizationCredentials = Depends(se
             )
         return {"valid": True, "user_id": payload.get("user_id")}
     except Exception as e:
-        print(f"❌ [AUTH] Token verify error: {str(e)}")
+        print(f"[AUTH] Token verify error: {str(e)}")
         raise HTTPException(status_code=401, detail="Token verification failed")
 
 @router.post("/logout")
@@ -585,7 +585,7 @@ def debug_email_config():
             print(f" [DEBUG] SMTP login successful")
             config_info["smtp_test"] = "SUCCESS"
     except Exception as e:
-        print(f"❌ [DEBUG] SMTP test failed: {str(e)}")
+        print(f"[DEBUG] SMTP test failed: {str(e)}")
         config_info["smtp_test"] = f"FAILED: {str(e)}"
     
     return config_info

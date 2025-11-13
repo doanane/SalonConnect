@@ -13,16 +13,32 @@ router = APIRouter()
 
 @router.get("/google")
 async def google_login(request: Request):
+<<<<<<< HEAD
+=======
+    """Start Google OAuth login flow"""
+    print(" User initiating Google login...")
+>>>>>>> fix/google_oauth
     return await GoogleOAuthService.get_authorization_url(request)
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     try:
+<<<<<<< HEAD
+=======
+        print(" Processing Google OAuth callback...")
+        
+        # Get user info from Google
+>>>>>>> fix/google_oauth
         google_user = await GoogleOAuthService.handle_callback(request)
         
         user = db.query(User).filter(User.email == google_user['email']).first()
         
         if not user:
+<<<<<<< HEAD
+=======
+            print(f" Creating new user: {google_user['email']}")
+            # Create new user using AuthService
+>>>>>>> fix/google_oauth
             from app.schemas.user import UserCreate
             user_data = UserCreate(
                 email=google_user['email'],
@@ -32,11 +48,23 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 role="customer"
             )
             user = await AuthService.register_google_user(db, user_data, google_user)
+<<<<<<< HEAD
+=======
+        else:
+            print(f" Existing user found: {user.email}")
+>>>>>>> fix/google_oauth
         
         access_token = create_access_token(data={"user_id": user.id, "email": user.email})
         refresh_token = create_access_token(data={"user_id": user.id}, expires_delta=timedelta(days=7))
         
+<<<<<<< HEAD
         html_content = f"""
+=======
+        print(f" Login successful for user: {user.email}")
+        
+        # Create success response page
+        return HTMLResponse(content=f"""
+>>>>>>> fix/google_oauth
         <!DOCTYPE html>
         <html>
         <head>
@@ -74,12 +102,22 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         </head>
         <body>
             <div class="container">
+<<<<<<< HEAD
                 <div class="success-icon">✓</div>
                 <h2>Login Successful!</h2>
                 <div>
                     <img class="user-avatar" src="{google_user.get('picture', '')}" alt="User Avatar">
                     <h3>Welcome, {user.first_name}!</h3>
                     <p>You have successfully logged in with Google.</p>
+=======
+                <div class="success-icon"></div>
+                <h1>Login Successful!</h1>
+                
+                <div class="user-info">
+                    <img class="avatar" src="{google_user.get('picture', '')}" alt="Profile Picture" onerror="this.style.display='none'">
+                    <h2>Welcome, {user.first_name} {user.last_name}!</h2>
+                    <p>{user.email}</p>
+>>>>>>> fix/google_oauth
                 </div>
                 <p>You can close this window and return to the app.</p>
                 <script>
@@ -113,7 +151,12 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         return HTMLResponse(content=html_content)
         
     except Exception as e:
+<<<<<<< HEAD
         error_html = f"""
+=======
+        print(f"OAuth callback error: {e}")
+        return HTMLResponse(content=f"""
+>>>>>>> fix/google_oauth
         <!DOCTYPE html>
         <html>
         <head>

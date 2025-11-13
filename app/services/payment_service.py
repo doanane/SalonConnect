@@ -57,7 +57,7 @@ class PaymentService:
                 }
             }
             
-            print(f"🧪 [TEST MODE] Initializing Paystack payment: {payload}")
+            print(f" [TEST MODE] Initializing Paystack payment: {payload}")
             
             response = requests.post(
                 f"{settings.PAYSTACK_BASE_URL}/transaction/initialize",
@@ -77,12 +77,12 @@ class PaymentService:
                     "test_mode": True
                 }
             else:
-                print(f"❌ [TEST MODE] Paystack error: {response.text}")
+                print(f"[TEST MODE] Paystack error: {response.text}")
                 raise HTTPException(status_code=400, detail="Failed to initialize payment")
                 
         except Exception as e:
             db.rollback()
-            print(f"❌ [TEST MODE] Payment initialization failed: {str(e)}")
+            print(f"[TEST MODE] Payment initialization failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Payment initialization failed: {str(e)}")    
     @staticmethod
     def verify_payment(db: Session, reference: str, customer_id: int):
