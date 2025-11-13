@@ -580,3 +580,69 @@ class EmailService:
     @staticmethod
     def generate_otp() -> str:
         return ''.join(random.choices(string.digits, k=6))
+
+    @staticmethod
+    def send_google_welcome_email(user):
+        """Send welcome email to users who register with Google"""
+        try:
+            subject = "Welcome to Salon Connect!"
+            
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+                    .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+                    .welcome {{ font-size: 24px; color: #667eea; margin-bottom: 20px; }}
+                    .role-badge {{ background: #667eea; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; margin: 10px 0; }}
+                    .features {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>💈 Welcome to Salon Connect!</h1>
+                    </div>
+                    <div class="content">
+                        <div class="welcome">Hello {user.first_name}!</div>
+                        
+                        <p>Thank you for joining Salon Connect with your Google account!</p>
+                        
+                        <p>You have registered as a: <span class="role-badge">{user.role.value.title() if hasattr(user.role, 'value') else user.role.title()}</span></p>
+                        
+                        <div class="features">
+                            <h3>🎉 What you can do now:</h3>
+                            <ul>
+                                {"<li>Browse and book salon services</li><li>Manage your appointments</li><li>Save favorite salons</li><li>Write reviews for salons</li>" if user.role.value == "customer" else ""}
+                                {"<li>Set up your salon profile</li><li>Manage your services and pricing</li><li>Handle customer bookings</li><li>Track your business performance</li>" if user.role.value == "vendor" else ""}
+                                {"<li>Manage platform operations</li><li>Monitor system performance</li><li>Support users and vendors</li>" if user.role.value == "admin" else ""}
+                            </ul>
+                        </div>
+                        
+                        <p><strong>Getting Started Tips:</strong></p>
+                        <ul>
+                            <li>Complete your profile to get personalized recommendations</li>
+                            <li>Explore salons and services in your area</li>
+                            <li>Book your first appointment easily</li>
+                        </ul>
+                        
+                        <p>We're excited to have you on board!</p>
+                        
+                        <p><strong>Happy styling! 🎉</strong></p>
+                        
+                        <p><small>If you have any questions, feel free to reply to this email or visit our help center.</small></p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Send email
+            EmailService.send_email(user.email, subject, html_content)
+            
+        except Exception as e:
+            print(f"❌ Error sending Google welcome email: {e}")
+            # Don't raise exception - email failure shouldn't break registration
