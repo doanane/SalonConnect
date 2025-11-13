@@ -16,7 +16,6 @@ class EmailService:
             print(f" [SENDGRID] From: {settings.FROM_EMAIL}")
             print(f" [SENDGRID] Subject: {subject}")
             
-            # Validate configuration
             if not settings.SENDGRID_API_KEY:
                 print("[SENDGRID] Missing SENDGRID_API_KEY")
                 return False
@@ -25,17 +24,17 @@ class EmailService:
                 print("[SENDGRID] Missing FROM_EMAIL")
                 return False
 
-            # SendGrid API endpoint
+        
             url = "https://api.sendgrid.com/v3/mail/send"
             
-            # Headers
+        
             headers = {
                 "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
                 "Content-Type": "application/json",
                 "User-Agent": "SalonConnect-API/1.0"
             }
             
-            # FIXED: Content order - text/plain must come first
+        
             data = {
                 "personalizations": [{
                     "to": [{"email": to_email}],
@@ -433,7 +432,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>New Booking Received! 📅</h1>
+                        <h1>New Booking Received!</h1>
                         <p>Salon Connect</p>
                     </div>
                     <div class="content">
