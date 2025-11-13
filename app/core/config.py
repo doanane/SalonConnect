@@ -52,10 +52,8 @@ class Settings(BaseSettings):
     
     @property
     def GOOGLE_REDIRECT_URI(self):
-        if self.IS_PRODUCTION:
-            return "https://salonconnect-qzne.onrender.com/api/auth/google/callback"
-        else:
-            return "http://localhost:8000/api/auth/google/callback"
+        redirect_uri = f"{self.CURRENT_BASE_URL}/api/auth/google/callback"
+        return redirect_uri
 
 settings = Settings()
 
