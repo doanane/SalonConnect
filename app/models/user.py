@@ -23,8 +23,8 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    phone_number = Column(String(20), unique=True, index=True)
-    password = Column(String(255), nullable=False)
+    phone_number = Column(String(20), unique=True, index=True, nullable=True)  # Make nullable for OAuth users
+    password = Column(String(255), nullable=True)  # Make nullable for OAuth users
     first_name = Column(String(100))
     last_name = Column(String(100))
     role = Column(Enum(UserRole), default=UserRole.CUSTOMER)
@@ -33,6 +33,10 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
+    # Google OAuth fields
+    google_id = Column(String(255), unique=True, index=True, nullable=True)
+    registration_method = Column(String(50), default="email")  # "email" or "google"
+    
     # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     salons = relationship("Salon", back_populates="owner")
@@ -40,6 +44,8 @@ class User(Base):
     favorite_salons = relationship("Salon", secondary=user_favorites, backref="favorited_by_users")
     otps = relationship("UserOTP", back_populates="user")
     password_resets = relationship("PasswordReset", back_populates="user")
+
+
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
