@@ -26,7 +26,6 @@ class Salon(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    # Relationships
     owner = relationship("User", back_populates="salons")
     services = relationship("Service", back_populates="salon")
     bookings = relationship("Booking", back_populates="salon")
@@ -42,7 +41,7 @@ class Service(Base):
     description = Column(Text)
     duration = Column(Integer)
     price = Column(Float, nullable=False)
-    currency = Column(String(10), default="NGN")
+    currency = Column(String(10), default="GHS")  # CHANGED: NGN to GHS
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     

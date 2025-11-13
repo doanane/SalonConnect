@@ -1,5 +1,8 @@
+aiomysql
+aiosmtplib
 alembic
 amqp
+annotated-doc
 annotated-types
 anyio
 asgiref
@@ -34,11 +37,12 @@ django-jazzmin
 django-phonenumber-field
 django-timezone-field
 djangorestframework
-djangorestframework-simplejwt
+djangorestframework_simplejwt
 dnspython
 dotenv
 drf-spectacular
 drf-yasg
+dynaconf
 ecdsa
 email-validator
 environ
@@ -53,6 +57,7 @@ httpx
 idna
 inflection
 iniconfig
+itsdangerous
 Jinja2
 jiter
 jsonschema
@@ -70,10 +75,12 @@ packaging
 passlib
 paystack
 phonenumbers
+pi
 pillow
 pluggy
 prompt_toolkit
-psycopg2
+psycopg
+psycopg-binary
 psycopg2-binary
 pyasn1
 pycparser
@@ -84,6 +91,7 @@ pydantic-settings
 pydantic_core
 Pygments
 PyJWT
+PyMySQL
 pytest
 pytest-django
 python-dateutil
@@ -123,4 +131,3 @@ vine
 wcwidth
 Werkzeug
 wheel
-httpx

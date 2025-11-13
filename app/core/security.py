@@ -12,7 +12,7 @@ try:
     BC_AVAILABLE = True
 except:
     BC_AVAILABLE = False
-    print("⚠️  bcrypt not available, using SHA256")
+    print("  bcrypt not available, using SHA256")
 
 def verify_password(plain_password: str, hashed_password: str):
     """Verify password - supports both bcrypt and SHA256"""
