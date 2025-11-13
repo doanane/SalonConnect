@@ -590,3 +590,30 @@ def debug_email_config():
     
     return config_info
 
+
+@router.get("/auth/google")
+async def google_auth():
+    """Redirect to Google OAuth page"""
+    auth_url = GoogleOAuthService.get_google_auth_url()
+    return RedirectResponse(auth_url)
+
+@router.get("/auth/google/callback")
+async def google_callback(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Handle Google OAuth callback"""
+    code = request.query_params.get("code")
+    error = request.query_params.get("error")
+    
+    if error:
+        raise HTTPException(status_code=400, detail=f"Google OAuth error: {error}")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="No authorization code provided")
+    
+    try:
+        result = await GoogleOAuthService.handle_google_callback(db, code)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
