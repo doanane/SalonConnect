@@ -3,7 +3,6 @@ from .salon import Salon, Service, SalonImage, Review
 from .booking import Booking, BookingItem, BookingStatus
 from .payment import Payment, PaymentStatus, PaymentMethod
 
-# Configure relationships after all models are imported
 from sqlalchemy.orm import configure_mappers
 configure_mappers()
 

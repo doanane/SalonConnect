@@ -10,7 +10,7 @@ from app.services.auth import AuthService
 from app.core.cloudinary import upload_image
 from app.models.user import User, UserProfile
 
-# Import Google OAuth routes
+
 from app.routes import google_oauth
 
 router = APIRouter()
@@ -61,19 +61,19 @@ def update_user_profile(
 @router.get("/me/role")
 def get_user_role(current_user: User = Depends(get_current_user)):
     """Get current user role"""
-    return {"role": current_user.role.value}  # Use .value for Enum
+    return {"role": current_user.role.value}  
 
 @router.get("/customer/dashboard")
 def get_customer_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get customer dashboard data"""
-    if current_user.role.value != "customer":  # Use .value for Enum
+    if current_user.role.value != "customer":  
         raise HTTPException(status_code=403, detail="Only customers can access this endpoint")
     return AuthService.get_customer_dashboard(db, current_user.id)
 
 @router.get("/vendor/dashboard")
 def get_vendor_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get vendor dashboard data"""
-    if current_user.role.value != "vendor":  # Use .value for Enum
+    if current_user.role.value != "vendor":  
         raise HTTPException(status_code=403, detail="Only vendors can access this endpoint")
     return AuthService.get_vendor_dashboard(db, current_user.id)
 
@@ -88,11 +88,11 @@ async def upload_profile_picture(
         raise HTTPException(status_code=400, detail="File must be an image")
     
     try:
-        # Upload image to Cloudinary
+        
         result = upload_image(file.file, folder="salon_connect/profiles")
         profile_picture_url = result.get('secure_url')
         
-        # Update profile with new picture URL
+        
         profile_data = UserProfileUpdate(profile_picture=profile_picture_url)
         updated_profile = AuthService.update_user_profile(db, current_user.id, profile_data)
         

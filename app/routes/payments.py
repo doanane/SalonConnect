@@ -18,7 +18,7 @@ router = APIRouter()
 def process_successful_payment(db: Session, reference: str, data: dict):
     """Process successful payment in background"""
     try:
-        print(f"✅ [TEST MODE] Processing successful payment for reference: {reference}")
+        print(f" [TEST MODE] Processing successful payment for reference: {reference}")
         
         # Find payment by reference
         from app.models.payment import Payment, PaymentStatus
@@ -36,7 +36,7 @@ def process_successful_payment(db: Session, reference: str, data: dict):
                 payment.booking.status = BookingStatus.CONFIRMED
             
             db.commit()
-            print(f"✅ [TEST MODE] Payment {reference} marked as successful")
+            print(f" [TEST MODE] Payment {reference} marked as successful")
             
             # Send confirmation email
             from app.services.email import EmailService
@@ -46,7 +46,7 @@ def process_successful_payment(db: Session, reference: str, data: dict):
                     payment, 
                     payment.booking
                 )
-                print(f"✅ [TEST MODE] Payment confirmation email sent for {reference}")
+                print(f" [TEST MODE] Payment confirmation email sent for {reference}")
             except Exception as email_error:
                 print(f"⚠️ [TEST MODE] Failed to send payment confirmation email: {email_error}")
         else:
@@ -176,7 +176,7 @@ async def paystack_webhook(
         if event_type == 'charge.success':
             reference = data.get('reference')
             if reference:
-                print(f"✅ [TEST MODE] Processing successful charge: {reference}")
+                print(f" [TEST MODE] Processing successful charge: {reference}")
                 background_tasks.add_task(
                     process_successful_payment, 
                     db, 
@@ -204,7 +204,7 @@ async def paystack_webhook(
             return {"status": "success", "message": f"{event_type} acknowledged"}
         
         elif event_type == 'test' or 'test' in body_str.lower():
-            print("✅ [TEST MODE] Test event received and acknowledged")
+            print(" [TEST MODE] Test event received and acknowledged")
             return {"status": "success", "message": "Test event received"}
         
         else:

@@ -17,7 +17,7 @@ def create_all_tables():
         Booking.metadata.create_all(bind=engine)
         BookingItem.metadata.create_all(bind=engine)
         Payment.metadata.create_all(bind=engine)
-        print("✅ All tables created successfully!")
+        print(" All tables created successfully!")
     except Exception as e:
         print(f"❌ Error creating tables: {e}")
 

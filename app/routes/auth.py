@@ -46,7 +46,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user - sends verification email"""
     try:
-        print(f"🔧 [AUTH] Registration attempt for: {user_data.email}")
+        print(f" [AUTH] Registration attempt for: {user_data.email}")
         
         # Check if email already exists
         existing_user = db.query(User).filter(User.email == user_data.email).first()
@@ -121,7 +121,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 def verify_email(request: Request, token: str = Query(...), db: Session = Depends(get_db)):
     """Verify user email and show success page"""
     try:
-        print(f"🔧 [AUTH] Email verification attempt with token: {token[:50]}...")
+        print(f" [AUTH] Email verification attempt with token: {token[:50]}...")
         
         payload = EmailService.verify_token(token, 'email_verification')
         if not payload:
@@ -155,7 +155,7 @@ def verify_email(request: Request, token: str = Query(...), db: Session = Depend
         db.delete(pending_user)
         db.commit()
         
-        print(f"✅ [AUTH] Email verified successfully for: {user.email}")
+        print(f" [AUTH] Email verified successfully for: {user.email}")
         return templates.TemplateResponse("email_verified.html", {"request": request})
         
     except Exception as e:
@@ -182,10 +182,10 @@ def verify_email(request: Request, token: str = Query(...), db: Session = Depend
 def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """Request password reset - sends email with reset link"""
     try:
-        print(f"🔧 [AUTH] Forgot password attempt for: {request.email}")
+        print(f" [AUTH] Forgot password attempt for: {request.email}")
         user = db.query(User).filter(User.email == request.email).first()
         if not user:
-            print(f"🔧 [AUTH] User not found for email: {request.email}")
+            print(f" [AUTH] User not found for email: {request.email}")
             return {"message": "If the email exists, a password reset link will be sent."}
         
         reset_token = EmailService.generate_reset_token(user.email)
@@ -222,7 +222,7 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
 def reset_password_page(request: Request, token: str = Query(...), db: Session = Depends(get_db)):
     """Serve the beautiful reset password page with token validation"""
     try:
-        print(f"🔧 [AUTH] Reset password page access with token: {token[:50]}...")
+        print(f" [AUTH] Reset password page access with token: {token[:50]}...")
         
         if token.startswith("b'") and token.endswith("'"):
             token = token[2:-1]
@@ -272,7 +272,7 @@ def reset_password(
 ):
     """Reset password with token from form"""
     try:
-        print(f"🔧 [AUTH] Password reset attempt with token: {token[:50]}...")
+        print(f" [AUTH] Password reset attempt with token: {token[:50]}...")
         
         payload = EmailService.verify_reset_token(token)
         if not payload:
@@ -325,7 +325,7 @@ def reset_password(
         password_reset.used = True
         db.commit()
         
-        print(f"✅ [AUTH] Password reset successful for user: {user.email}")
+        print(f" [AUTH] Password reset successful for user: {user.email}")
         
         # Return the success page
         return templates.TemplateResponse("password_reset_success.html", {
@@ -344,7 +344,7 @@ def reset_password(
 def resend_verification(email: str, db: Session = Depends(get_db)):
     """Resend email verification"""
     try:
-        print(f"🔧 [AUTH] Resend verification attempt for: {email}")
+        print(f" [AUTH] Resend verification attempt for: {email}")
         pending_user = db.query(PendingUser).filter(PendingUser.email == email).first()
         if not pending_user:
             return {"message": "If you have an account, a verification link has been sent to your email."}
@@ -553,7 +553,7 @@ def debug_environment():
         "RENDER_EXTERNAL_URL": os.getenv("RENDER_EXTERNAL_URL")
     }
     
-    print(f"🔧 [ENV DEBUG] Environment variables: {env_vars}")
+    print(f" [ENV DEBUG] Environment variables: {env_vars}")
     
     return env_vars
 
@@ -573,16 +573,16 @@ def debug_email_config():
         "ENVIRONMENT": os.getenv("ENVIRONMENT", "unknown")
     }
     
-    print(f"🔧 [DEBUG] Email Configuration: {config_info}")
+    print(f" [DEBUG] Email Configuration: {config_info}")
     
     # Test SMTP connection
     try:
         import smtplib
-        print(f"🔧 [DEBUG] Testing SMTP connection to {settings.SMTP_HOST}:{settings.SMTP_PORT}")
+        print(f" [DEBUG] Testing SMTP connection to {settings.SMTP_HOST}:{settings.SMTP_PORT}")
         with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            print(f"✅ [DEBUG] SMTP connection successful")
+            print(f" [DEBUG] SMTP connection successful")
             server.login(settings.SMTP_USER, settings.SMTP_PASS)
-            print(f"✅ [DEBUG] SMTP login successful")
+            print(f" [DEBUG] SMTP login successful")
             config_info["smtp_test"] = "SUCCESS"
     except Exception as e:
         print(f"❌ [DEBUG] SMTP test failed: {str(e)}")
