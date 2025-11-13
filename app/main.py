@@ -24,26 +24,26 @@ async def keep_alive():
                 for endpoint in endpoints:
                     try:
                         response = await client.get(endpoint)
-                        print(f"✅ Keep-alive ping to {endpoint} - Status: {response.status_code}")
+                        print(f" Keep-alive ping to {endpoint} - Status: {response.status_code}")
                         break
                     except Exception as e:
-                        print(f"⚠️ Ping failed for {endpoint}: {e}")
+                        print(f" Ping failed for {endpoint}: {e}")
                         continue
         except Exception as e:
-            print(f"❌ Keep-alive ping failed: {e}")
+            print(f"Keep-alive ping failed: {e}")
         await asyncio.sleep(600)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Salon Connect API Starting...")
+    print(" Salon Connect API Starting...")
     
     if settings.IS_PRODUCTION:
-        print("🚀 Starting production keep-alive service...")
+        print(" Starting production keep-alive service...")
         keep_alive_task = asyncio.create_task(keep_alive())
         yield
         keep_alive_task.cancel()
     else:
-        print("🔧 Development mode - no keep-alive")
+        print(" Development mode - no keep-alive")
         yield
 
 app = FastAPI(

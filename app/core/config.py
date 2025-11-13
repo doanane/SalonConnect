@@ -59,6 +59,6 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-print(f"🚀 [PRODUCTION] Environment: {'PRODUCTION' if settings.IS_PRODUCTION else 'DEVELOPMENT'}")
-print(f"🚀 [PRODUCTION] Backend URL: {settings.CURRENT_BASE_URL}")
-print(f"🚀 [PRODUCTION] Google Redirect: {settings.GOOGLE_REDIRECT_URI}")
+print(f" [PRODUCTION] Environment: {'PRODUCTION' if settings.IS_PRODUCTION else 'DEVELOPMENT'}")
+print(f" [PRODUCTION] Backend URL: {settings.CURRENT_BASE_URL}")
+print(f" [PRODUCTION] Google Redirect: {settings.GOOGLE_REDIRECT_URI}")

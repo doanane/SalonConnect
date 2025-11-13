@@ -6,7 +6,7 @@ from app.models.booking import Booking, BookingItem
 from app.models.payment import Payment
 
 def create_all_tables():
-    print("🛠️ Creating database tables...")
+    print("Creating database tables...")
     try:
         User.metadata.create_all(bind=engine)
         UserProfile.metadata.create_all(bind=engine)
@@ -17,9 +17,9 @@ def create_all_tables():
         Booking.metadata.create_all(bind=engine)
         BookingItem.metadata.create_all(bind=engine)
         Payment.metadata.create_all(bind=engine)
-        print("✅ All tables created successfully!")
+        print(" All tables created successfully!")
     except Exception as e:
-        print(f"❌ Error creating tables: {e}")
+        print(f"Error creating tables: {e}")
 
 if __name__ == "__main__":
     create_all_tables()

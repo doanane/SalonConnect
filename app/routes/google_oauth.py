@@ -34,7 +34,7 @@ async def debug_oauth_config():
 @router.get("/google", tags=["Google OAuth"])
 async def google_login(request: Request):
     """Start Google OAuth login flow"""
-    print("👤 User initiating Google login...")
+    print(" User initiating Google login...")
     return await GoogleOAuthService.get_authorization_url(request)
 @router.get("/debug-session", tags=["Google OAuth"])
 async def debug_session(request: Request):
@@ -64,7 +64,7 @@ async def session_test(request: Request):
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """Handle Google OAuth callback"""
     try:
-        print("🔄 Processing Google OAuth callback...")
+        print(" Processing Google OAuth callback...")
         
         # Get user info from Google
         google_user = await GoogleOAuthService.handle_callback(request)
@@ -73,7 +73,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.email == google_user['email']).first()
         
         if not user:
-            print(f"👤 Creating new user: {google_user['email']}")
+            print(f" Creating new user: {google_user['email']}")
             # Create new user using AuthService
             from app.schemas.user import UserCreate
             user_data = UserCreate(
@@ -85,7 +85,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             )
             user = await AuthService.register_google_user(db, user_data, google_user)
         else:
-            print(f"👤 Existing user found: {user.email}")
+            print(f" Existing user found: {user.email}")
         
         # Generate JWT tokens
         access_token = create_access_token(
@@ -96,7 +96,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             expires_delta=timedelta(days=7)
         )
         
-        print(f"✅ Login successful for user: {user.email}")
+        print(f" Login successful for user: {user.email}")
         
         # Create success response page
         return HTMLResponse(content=f"""
@@ -143,7 +143,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         </head>
         <body>
             <div class="container">
-                <div class="success-icon">✅</div>
+                <div class="success-icon"></div>
                 <h1>Login Successful!</h1>
                 
                 <div class="user-info">
@@ -190,7 +190,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         """)
         
     except Exception as e:
-        print(f"❌ OAuth callback error: {e}")
+        print(f"OAuth callback error: {e}")
         return HTMLResponse(content=f"""
         <!DOCTYPE html>
         <html>

@@ -13,7 +13,7 @@ def setup_google_oauth():
     try:
         # Make sure we have the required credentials
         if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
-            print("❌ Google OAuth credentials not found!")
+            print("Google OAuth credentials not found!")
             return False
             
         oauth.register(
@@ -26,11 +26,11 @@ def setup_google_oauth():
                 'redirect_uri': settings.GOOGLE_REDIRECT_URI
             }
         )
-        print("✅ Google OAuth configured successfully")
-        print(f"🔗 Redirect URI: {settings.GOOGLE_REDIRECT_URI}")
+        print(" Google OAuth configured successfully")
+        print(f" Redirect URI: {settings.GOOGLE_REDIRECT_URI}")
         return True
     except Exception as e:
-        print(f"❌ Failed to setup Google OAuth: {e}")
+        print(f"Failed to setup Google OAuth: {e}")
         return False
 
 # Setup OAuth when module loads
@@ -44,7 +44,7 @@ class GoogleOAuthService:
             if not oauth_configured:
                 raise HTTPException(status_code=500, detail="Google OAuth not configured properly")
             
-            print(f"🚀 Starting OAuth flow...")
+            print(f" Starting OAuth flow...")
             
             # Generate a secure state parameter
             state = secrets.token_urlsafe(32)
@@ -59,9 +59,9 @@ class GoogleOAuthService:
             if hasattr(request.session, '_saver'):
                 await request.session._saver()
             
-            print(f"🔐 Generated state: {state}")
-            print(f"💾 Session after setting state: {list(request.session.keys())}")
-            print(f"📨 Redirect URI: {settings.GOOGLE_REDIRECT_URI}")
+            print(f"Generated state: {state}")
+            print(f" Session after setting state: {list(request.session.keys())}")
+            print(f"Redirect URI: {settings.GOOGLE_REDIRECT_URI}")
             
             # Use the original authlib method but ensure it uses our state
             redirect_response = await oauth.google.authorize_redirect(
@@ -70,11 +70,11 @@ class GoogleOAuthService:
                 state=state
             )
             
-            print(f"✅ Authorization URL generated with state: {state}")
+            print(f" Authorization URL generated with state: {state}")
             return redirect_response
             
         except Exception as e:
-            print(f"❌ Error generating authorization URL: {e}")
+            print(f"Error generating authorization URL: {e}")
             import traceback
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Failed to start OAuth: {str(e)}")
@@ -83,9 +83,9 @@ class GoogleOAuthService:
     async def handle_callback(request: Request):
         """Handle Google OAuth callback with manual state verification"""
         try:
-            print("🔄 Processing OAuth callback...")
-            print(f"📨 Full callback URL: {request.url}")
-            print(f"📋 Query parameters: {dict(request.query_params)}")
+            print(" Processing OAuth callback...")
+            print(f"Full callback URL: {request.url}")
+            print(f" Query parameters: {dict(request.query_params)}")
             
             # Get state from query parameters
             incoming_state = request.query_params.get('state')
@@ -94,19 +94,19 @@ class GoogleOAuthService:
             
             if error:
                 error_description = request.query_params.get('error_description', 'No description')
-                print(f"❌ OAuth error from Google: {error} - {error_description}")
+                print(f"OAuth error from Google: {error} - {error_description}")
                 raise HTTPException(status_code=400, detail=f"Google OAuth error: {error}")
             
-            print(f"🔐 Incoming state from Google: {incoming_state}")
-            print(f"🔑 Authorization code received: {bool(authorization_code)}")
+            print(f"Incoming state from Google: {incoming_state}")
+            print(f" Authorization code received: {bool(authorization_code)}")
             
             # Get stored state from session
             stored_state = request.session.get('oauth_state')
             stored_timestamp = request.session.get('oauth_timestamp')
             
-            print(f"💾 Stored state from session: {stored_state}")
-            print(f"⏰ Stored timestamp: {stored_timestamp}")
-            print(f"🔍 All session keys: {list(request.session.keys())}")
+            print(f" Stored state from session: {stored_state}")
+            print(f" Stored timestamp: {stored_timestamp}")
+            print(f" All session keys: {list(request.session.keys())}")
             
             # Manual state verification
             if not incoming_state:
@@ -122,7 +122,7 @@ class GoogleOAuthService:
                 )
             
             if incoming_state != stored_state:
-                print(f"❌ STATE MISMATCH DETECTED!")
+                print(f"STATE MISMATCH DETECTED!")
                 print(f"   Incoming from Google: {incoming_state}")
                 print(f"   Stored in session: {stored_state}")
                 print(f"   Match: {incoming_state == stored_state}")
@@ -140,23 +140,23 @@ class GoogleOAuthService:
             
             # Check if state is too old (10 minutes)
             if stored_timestamp and (time.time() - stored_timestamp) > 600:
-                print(f"❌ State too old: {time.time() - stored_timestamp} seconds")
+                print(f"State too old: {time.time() - stored_timestamp} seconds")
                 raise HTTPException(status_code=400, detail="OAuth session expired. Please try logging in again.")
             
-            print("✅ State verification passed!")
+            print(" State verification passed!")
             
             # Now proceed with token exchange using authlib
-            print("🔄 Exchanging authorization code for access token...")
+            print(" Exchanging authorization code for access token...")
             token = await oauth.google.authorize_access_token(request)
-            print("✅ Access token received successfully")
+            print(" Access token received successfully")
             
             # Get user info from Google
             user_info = token.get('userinfo')
             if not user_info:
-                print("❌ No user info in token response")
+                print("No user info in token response")
                 raise HTTPException(status_code=400, detail="Failed to get user information from Google")
             
-            print(f"✅ User authenticated: {user_info.email}")
+            print(f" User authenticated: {user_info.email}")
             
             # Clean up session
             if 'oauth_state' in request.session:
@@ -179,7 +179,7 @@ class GoogleOAuthService:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
-            print(f"❌ OAuth callback error: {e}")
+            print(f"OAuth callback error: {e}")
             import traceback
             traceback.print_exc()
             raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")

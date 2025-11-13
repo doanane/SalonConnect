@@ -12,17 +12,17 @@ class EmailService:
     def send_email(to_email: str, subject: str, html_content: str) -> bool:
         """Send email using SendGrid API with comprehensive anti-spam measures"""
         try:
-            print(f"🔧 [SENDGRID] Starting email send to: {to_email}")
-            print(f"🔧 [SENDGRID] From: {settings.FROM_EMAIL}")
-            print(f"🔧 [SENDGRID] Subject: {subject}")
+            print(f" [SENDGRID] Starting email send to: {to_email}")
+            print(f" [SENDGRID] From: {settings.FROM_EMAIL}")
+            print(f" [SENDGRID] Subject: {subject}")
             
             # Validate configuration
             if not settings.SENDGRID_API_KEY:
-                print("❌ [SENDGRID] Missing SENDGRID_API_KEY")
+                print("[SENDGRID] Missing SENDGRID_API_KEY")
                 return False
             
             if not settings.FROM_EMAIL:
-                print("❌ [SENDGRID] Missing FROM_EMAIL")
+                print("[SENDGRID] Missing FROM_EMAIL")
                 return False
 
             # SendGrid API endpoint
@@ -90,27 +90,27 @@ class EmailService:
                 }
             }
             
-            print(f"🔧 [SENDGRID] Sending email via SendGrid API...")
+            print(f" [SENDGRID] Sending email via SendGrid API...")
             
             # Send request with timeout
             response = requests.post(url, json=data, headers=headers, timeout=30)
             
             if response.status_code == 202:
-                print(f"✅ [SENDGRID] Email sent successfully! Status: {response.status_code}")
+                print(f" [SENDGRID] Email sent successfully! Status: {response.status_code}")
                 return True
             else:
-                print(f"❌ [SENDGRID] Failed to send email. Status: {response.status_code}")
+                print(f"[SENDGRID] Failed to send email. Status: {response.status_code}")
                 error_response = response.json()
-                print(f"❌ [SENDGRID] Error details: {error_response}")
+                print(f"[SENDGRID] Error details: {error_response}")
                 return False
             
         except requests.exceptions.Timeout:
-            print(f"❌ [SENDGRID] Request timeout - email might still be sent")
+            print(f"[SENDGRID] Request timeout - email might still be sent")
             return True
         except Exception as e:
-            print(f"❌ [SENDGRID] Error sending email: {str(e)}")
+            print(f"[SENDGRID] Error sending email: {str(e)}")
             import traceback
-            print(f"❌ [SENDGRID] Traceback: {traceback.format_exc()}")
+            print(f"[SENDGRID] Traceback: {traceback.format_exc()}")
             return False
 
     @staticmethod
@@ -293,7 +293,7 @@ class EmailService:
             "verification", user_data, action_url=verification_url
         )
         
-        print(f"📧 [SENDGRID] Sending verification email to: {user_data['email']}")
+        print(f"[SENDGRID] Sending verification email to: {user_data['email']}")
         return EmailService.send_email(user_data['email'], subject, html_content)
 
     @staticmethod
@@ -308,7 +308,7 @@ class EmailService:
             "password_reset", user_data, action_url=reset_url
         )
         
-        print(f"📧 [SENDGRID] Sending password reset email to: {user_data['email']}")
+        print(f"[SENDGRID] Sending password reset email to: {user_data['email']}")
         return EmailService.send_email(user_data['email'], subject, html_content)
 
     @staticmethod
@@ -323,7 +323,7 @@ class EmailService:
             "otp", user_data, otp=otp
         )
         
-        print(f"📧 [SENDGRID] Sending OTP email to: {user_data['email']}")
+        print(f"[SENDGRID] Sending OTP email to: {user_data['email']}")
         return EmailService.send_email(user_data['email'], subject, html_content)
 
     @staticmethod
@@ -394,10 +394,10 @@ class EmailService:
             
             subject = "Booking Confirmation - Salon Connect"
             
-            print(f"📧 [SENDGRID] Sending booking confirmation to: {user_data['email']}")
+            print(f"[SENDGRID] Sending booking confirmation to: {user_data['email']}")
             return EmailService.send_email(user_data['email'], subject, html_content)
         except Exception as e:
-            print(f"❌ Error sending booking confirmation: {e}")
+            print(f"Error sending booking confirmation: {e}")
             return False
 
     @staticmethod
@@ -464,10 +464,10 @@ class EmailService:
             
             subject = "New Booking Received - Salon Connect"
             
-            print(f"📧 [SENDGRID] Sending booking notification to vendor: {user_data['email']}")
+            print(f"[SENDGRID] Sending booking notification to vendor: {user_data['email']}")
             return EmailService.send_email(user_data['email'], subject, html_content)
         except Exception as e:
-            print(f"❌ Error sending vendor notification: {e}")
+            print(f"Error sending vendor notification: {e}")
             return False
 
     @staticmethod
@@ -498,7 +498,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>Payment Confirmed! ✅</h1>
+                        <h1>Payment Confirmed! </h1>
                         <p>Salon Connect</p>
                     </div>
                     <div class="content">
@@ -527,10 +527,10 @@ class EmailService:
             
             subject = "Payment Confirmed - Salon Connect"
             
-            print(f"📧 [SENDGRID] Sending payment confirmation to: {user_data['email']}")
+            print(f"[SENDGRID] Sending payment confirmation to: {user_data['email']}")
             return EmailService.send_email(user_data['email'], subject, html_content)
         except Exception as e:
-            print(f"❌ Error sending payment confirmation: {e}")
+            print(f"Error sending payment confirmation: {e}")
             return False
 
     # Token generation methods

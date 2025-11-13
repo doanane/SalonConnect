@@ -82,14 +82,14 @@ class BookingService:
             try:
                 EmailService.send_booking_confirmation(booking.customer, booking, salon)
             except Exception as e:
-                print(f"⚠️ Failed to send booking confirmation email: {e}")
+                print(f" Failed to send booking confirmation email: {e}")
             
             try:
                 vendor = db.query(User).filter(User.id == salon.owner_id).first()
                 if vendor:
                     EmailService.send_booking_notification_to_vendor(vendor, booking, booking.customer, salon)
             except Exception as e:
-                print(f"⚠️ Failed to send vendor notification email: {e}")
+                print(f" Failed to send vendor notification email: {e}")
             
             return booking
             
