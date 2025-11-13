@@ -7,6 +7,7 @@ from app.services.google_oauth import GoogleOAuthService
 from app.services.auth import AuthService
 from app.core.security import create_access_token
 from app.models.user import User
+from app.core.config import settings
 import json
 
 router = APIRouter()
@@ -14,13 +15,13 @@ router = APIRouter()
 @router.get("/google")
 async def google_login(request: Request):
     """Start Google OAuth login flow"""
-    print(" User initiating Google login...")
+    print("User initiating Google login...")
     return await GoogleOAuthService.get_authorization_url(request)
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     try:
-        print(" Processing Google OAuth callback...")
+        print("Processing Google OAuth callback...")
         
         # Get user info from Google
         google_user = await GoogleOAuthService.handle_callback(request)
@@ -28,7 +29,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         user = db.query(User).filter(User.email == google_user['email']).first()
         
         if not user:
-            print(f" Creating new user: {google_user['email']}")
+            print(f"Creating new user: {google_user['email']}")
             # Create new user using AuthService
             from app.schemas.user import UserCreate
             user_data = UserCreate(
@@ -40,12 +41,12 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             )
             user = await AuthService.register_google_user(db, user_data, google_user)
         else:
-            print(f" Existing user found: {user.email}")
+            print(f"Existing user found: {user.email}")
         
         access_token = create_access_token(data={"user_id": user.id, "email": user.email})
         refresh_token = create_access_token(data={"user_id": user.id}, expires_delta=timedelta(days=7))
         
-        print(f" Login successful for user: {user.email}")
+        print(f"Login successful for user: {user.email}")
         
         # Create success response page
         return HTMLResponse(content=f"""
@@ -86,11 +87,11 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         </head>
         <body>
             <div class="container">
-                <div class="success-icon"></div>
+                <div class="success-icon">Success</div>
                 <h1>Login Successful!</h1>
                 
                 <div class="user-info">
-                    <img class="avatar" src="{google_user.get('picture', '')}" alt="Profile Picture" onerror="this.style.display='none'">
+                    <img class="user-avatar" src="{google_user.get('picture', '')}" alt="Profile Picture" onerror="this.style.display='none'">
                     <h2>Welcome, {user.first_name} {user.last_name}!</h2>
                     <p>{user.email}</p>
                 </div>
@@ -121,9 +122,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             </div>
         </body>
         </html>
-        """
-        
-        return HTMLResponse(content=html_content)
+        """)
         
     except Exception as e:
         print(f"OAuth callback error: {e}")
@@ -159,15 +158,14 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         </head>
         <body>
             <div class="container">
-                <div class="error-icon">✗</div>
+                <div class="error-icon">Error</div>
                 <h2>Login Failed</h2>
                 <p>Error: {str(e)}</p>
                 <button onclick="window.close()">Close</button>
             </div>
         </body>
         </html>
-        """
-        return HTMLResponse(content=error_html, status_code=400)
+        """, status_code=400)
 
 @router.get("/login-page")
 async def login_page():
