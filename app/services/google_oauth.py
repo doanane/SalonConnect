@@ -146,6 +146,7 @@ class GoogleOAuthService:
             
             # Get user info from Google
             user_info = token.get('userinfo')
+            
             if not user_info:
                 print("No user info in token response")
                 raise HTTPException(status_code=400, detail="Failed to get user information from Google")
