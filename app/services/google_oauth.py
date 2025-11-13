@@ -35,7 +35,6 @@ oauth_configured = setup_google_oauth()
 class GoogleOAuthService:
     @staticmethod
     async def get_authorization_url(request: Request):
-        """Generate Google OAuth authorization URL with manual state handling"""
         try:
             if not oauth_configured:
                 raise HTTPException(status_code=500, detail="Google OAuth not configured properly")
@@ -154,13 +153,7 @@ class GoogleOAuthService:
             
             print(f" User authenticated: {user_info.email}")
             
-            # Clean up session
-            if 'oauth_state' in request.session:
-                del request.session['oauth_state']
-            if 'oauth_timestamp' in request.session:
-                del request.session['oauth_timestamp']
-            if 'oauth_flow_started' in request.session:
-                del request.session['oauth_flow_started']
+            print(f"🚀 [PRODUCTION] User authenticated: {user_info.email}")
             
             return {
                 'email': user_info.email,
