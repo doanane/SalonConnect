@@ -16,7 +16,7 @@ class EmailService:
             print(f" [SENDGRID] From: {settings.FROM_EMAIL}")
             print(f" [SENDGRID] Subject: {subject}")
             
-            # Validate configuration
+            
             if not settings.SENDGRID_API_KEY:
                 print("[SENDGRID] Missing SENDGRID_API_KEY")
                 return False
@@ -25,17 +25,16 @@ class EmailService:
                 print("[SENDGRID] Missing FROM_EMAIL")
                 return False
 
-            # SendGrid API endpoint
+            
             url = "https://api.sendgrid.com/v3/mail/send"
             
-            # Headers
+            
             headers = {
                 "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
                 "Content-Type": "application/json",
                 "User-Agent": "SalonConnect-API/1.0"
             }
             
-            # FIXED: Content order - text/plain must come first
             data = {
                 "personalizations": [{
                     "to": [{"email": to_email}],
@@ -92,7 +91,6 @@ class EmailService:
             
             print(f" [SENDGRID] Sending email via SendGrid API...")
             
-            # Send request with timeout
             response = requests.post(url, json=data, headers=headers, timeout=30)
             
             if response.status_code == 202:
@@ -533,7 +531,6 @@ class EmailService:
             print(f"Error sending payment confirmation: {e}")
             return False
 
-    # Token generation methods
     @staticmethod
     def generate_verification_token(email: str) -> str:
         payload = {

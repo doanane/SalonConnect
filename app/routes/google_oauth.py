@@ -25,7 +25,7 @@ async def debug_oauth_config():
         "oauth_configured": oauth_configured
     }
     
-    # Don't expose full client secret in response
+    
     if settings.GOOGLE_CLIENT_ID:
         config_info["google_client_id_preview"] = settings.GOOGLE_CLIENT_ID[:10] + "..."
     
@@ -66,28 +66,28 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     try:
         print(" Processing Google OAuth callback...")
         
-        # Get user info from Google
+        
         google_user = await GoogleOAuthService.handle_callback(request)
         
-        # Check if user exists in database
+        
         user = db.query(User).filter(User.email == google_user['email']).first()
         
         if not user:
             print(f" Creating new user: {google_user['email']}")
-            # Create new user using AuthService
+            
             from app.schemas.user import UserCreate
             user_data = UserCreate(
                 email=google_user['email'],
                 first_name=google_user['first_name'],
                 last_name=google_user['last_name'],
-                password=f"google_oauth_{secrets.token_urlsafe(8)}",  # Random password for OAuth users
+                password=f"google_oauth_{secrets.token_urlsafe(8)}",  
                 role="customer"
             )
             user = await AuthService.register_google_user(db, user_data, google_user)
         else:
             print(f" Existing user found: {user.email}")
         
-        # Generate JWT tokens
+        
         access_token = create_access_token(
             data={"user_id": user.id, "email": user.email}
         )
@@ -98,7 +98,6 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         
         print(f" Login successful for user: {user.email}")
         
-        # Create success response page
         return HTMLResponse(content=f"""
         <!DOCTYPE html>
         <html>
