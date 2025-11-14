@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     RENDER_EXTERNAL_URL: str = os.getenv("RENDER_EXTERNAL_URL", "")
     RENDER: bool = os.getenv("RENDER", "False").lower() == "true"
     
+    # Admin configuration
+    ADMIN_EMAILS: list = os.getenv("ADMIN_EMAILS", "anane365221@gmail.com").split(",")
+    
     @property
     def IS_PRODUCTION(self):
         return self.RENDER or bool(self.RENDER_EXTERNAL_URL)
@@ -52,14 +55,10 @@ class Settings(BaseSettings):
     
     @property
     def GOOGLE_REDIRECT_URI(self):
-        """Get the correct Google OAuth redirect URI - MUST point to backend"""
-        if self.IS_PRODUCTION:
-            return "https://salonconnect-qzne.onrender.com/api/auth/google/callback"
-        else:
-            return "http://localhost:8000/api/auth/google/callback"
+        return f"{self.CURRENT_BASE_URL}/api/auth/google/callback"
 
 settings = Settings()
 
-print(f" [PRODUCTION] Environment: {'PRODUCTION' if settings.IS_PRODUCTION else 'DEVELOPMENT'}")
-print(f" [PRODUCTION] Backend URL: {settings.CURRENT_BASE_URL}")
-print(f" [PRODUCTION] Google Redirect: {settings.GOOGLE_REDIRECT_URI}")
+print(f"Environment: {'PRODUCTION' if settings.IS_PRODUCTION else 'DEVELOPMENT'}")
+print(f"Backend URL: {settings.CURRENT_BASE_URL}")
+print(f"Google Redirect: {settings.GOOGLE_REDIRECT_URI}")
