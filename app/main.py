@@ -74,7 +74,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router, prefix="/api/users", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
-# app.include_router(google_oauth.router, prefix="/api/auth", tags=["Google OAuth"])
+app.include_router(google_oauth.router, prefix="/api/auth", tags=["Google OAuth"])
 app.include_router(salons.router, prefix="/api/salons", tags=["Salons"])
 app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
