@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from app.database import get_db
@@ -14,19 +14,61 @@ import secrets
 
 router = APIRouter()
 
-# Google OAuth Login
-@router.get("/google/login", tags=["Google OAuth"])
+# Google OAuth Login - Returns JSON for API calls, Redirect for browser
+@router.get("/google/login", tags=["Google OAuth"], response_class=JSONResponse)
 async def google_login(request: Request):
-    auth_url = await google_oauth_manual.start_oauth(request, is_registration=False)
-    return RedirectResponse(url=auth_url)
+    try:
+        auth_url = await google_oauth_manual.start_oauth(request, is_registration=False)
+        
+        # Check if this is an API call (based on headers)
+        accept_header = request.headers.get("accept", "")
+        if "application/json" in accept_header:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "message": "OAuth flow started",
+                    "auth_url": auth_url,
+                    "redirect_required": True
+                }
+            )
+        else:
+            # Browser request - redirect directly
+            return RedirectResponse(url=auth_url)
+            
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(e)}
+        )
 
-# Google OAuth Registration
-@router.get("/google/register", tags=["Google OAuth"])
+# Google OAuth Registration - Returns JSON for API calls, Redirect for browser
+@router.get("/google/register", tags=["Google OAuth"], response_class=JSONResponse)
 async def google_register(request: Request):
-    auth_url = await google_oauth_manual.start_oauth(request, is_registration=True)
-    return RedirectResponse(url=auth_url)
+    try:
+        auth_url = await google_oauth_manual.start_oauth(request, is_registration=True)
+        
+        # Check if this is an API call (based on headers)
+        accept_header = request.headers.get("accept", "")
+        if "application/json" in accept_header:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "message": "OAuth registration flow started",
+                    "auth_url": auth_url,
+                    "redirect_required": True
+                }
+            )
+        else:
+            # Browser request - redirect directly
+            return RedirectResponse(url=auth_url)
+            
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(e)}
+        )
 
-# OAuth Callback Handler
+# OAuth Callback Handler - This should only be called by Google
 @router.get("/google/callback", tags=["Google OAuth"])
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     try:
@@ -527,3 +569,15 @@ async def test_oauth_config():
             "callback": "/api/auth/google/callback"
         }
     }
+
+@router.get("/debug-session", tags=["Google OAuth"])
+async def debug_session(request: Request):
+    """Debug session state"""
+    session_data = {
+        "session_exists": hasattr(request, 'session'),
+        "session_keys": list(request.session.keys()) if hasattr(request, 'session') else [],
+        "oauth_state": request.session.get('oauth_state') if hasattr(request, 'session') else None,
+        "oauth_timestamp": request.session.get('oauth_timestamp') if hasattr(request, 'session') else None,
+        "oauth_purpose": request.session.get('oauth_purpose') if hasattr(request, 'session') else None
+    }
+    return session_data
