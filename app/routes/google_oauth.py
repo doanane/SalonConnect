@@ -219,6 +219,21 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 expires_delta=timedelta(days=7)
             )
             
+            # PRINT TOKENS TO SERVER CONSOLE
+            print("\n" + "="*60)
+            print("GOOGLE OAUTH LOGIN - TOKENS GENERATED")
+            print("="*60)
+            print(f"User: {existing_user.email} (ID: {existing_user.id})")
+            print(f"Email: {google_user['email']}")
+            print(f"Role: {existing_user.role.value}")
+            print("="*60)
+            print(f"ACCESS TOKEN:\n{access_token}")
+            print("="*60)
+            print(f"REFRESH TOKEN:\n{refresh_token}")
+            print("="*60)
+            print("Copy these tokens to authorize your API requests!")
+            print("="*60 + "\n")
+            
             user_permissions = AuthService.get_user_role_permissions(existing_user.role)
             
             return HTMLResponse(content=create_success_html(
@@ -227,7 +242,6 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         
         elif oauth_purpose == 'registration':
             # New user for registration - show role selection form
-            # FIX: Generate temp_session_id here if not already set
             temp_session_id = request.session.get('oauth_temp_id')
             if not temp_session_id:
                 temp_session_id = secrets.token_urlsafe(16)
@@ -239,6 +253,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             return HTMLResponse(content=create_redirect_to_registration(google_user))
         
     except Exception as e:
+        print(f"ERROR in Google OAuth callback: {str(e)}")
         return HTMLResponse(content=create_error_html(str(e)), status_code=400)
 
 @router.post("/google/complete-registration", tags=["Google OAuth"])
@@ -250,40 +265,25 @@ async def complete_google_registration(
     db: Session = Depends(get_db)
 ):
     try:
-        print("=== DEBUG: Starting complete registration ===")
-        
-        # Get all form data
-        form_data = await request.form()
-        print(f"DEBUG: All form data: {dict(form_data)}")
+        print("Starting complete registration")
         
         # Get session data
         pending_user = request.session.get('pending_google_user')
         stored_temp_id = request.session.get('oauth_temp_id')
         
-        print(f"DEBUG: pending_user in session: {pending_user}")
-        print(f"DEBUG: stored_temp_id: {stored_temp_id}")
-        print(f"DEBUG: received temp_session_id: {temp_session_id}")
-        print(f"DEBUG: All session keys: {list(request.session.keys())}")
-        
         # Check if we have the necessary data
         if not pending_user:
-            print("DEBUG: ERROR - No pending_google_user in session")
             raise HTTPException(status_code=400, detail="No registration data found. Please start the registration process again.")
         
         # Use stored_temp_id if temp_session_id is not provided
         if not temp_session_id:
             temp_session_id = stored_temp_id
-            print(f"DEBUG: Using stored_temp_id: {temp_session_id}")
         
         if not temp_session_id:
-            print("DEBUG: ERROR - No temp_session_id provided or stored")
             raise HTTPException(status_code=400, detail="Session identifier missing.")
         
         if stored_temp_id != temp_session_id:
-            print(f"DEBUG: ERROR - temp_session_id mismatch. Stored: {stored_temp_id}, Received: {temp_session_id}")
             raise HTTPException(status_code=400, detail="Registration session expired. Please start over.")
-        
-        print("DEBUG: All validations passed, creating user...")
         
         # Validate role
         try:
@@ -300,12 +300,6 @@ async def complete_google_registration(
         # Register the user
         user, is_new_user = await AuthService.register_google_user(db, pending_user, registration_data)
         
-        print(f"DEBUG: User created successfully: {user.email}, ID: {user.id}")
-        
-        # Send welcome notification
-        if is_new_user:
-            AuthService.send_welcome_notification(user, is_new_user=True)
-        
         # Generate tokens
         access_token = create_access_token(
             data={"user_id": user.id, "email": user.email, "role": user.role.value}
@@ -315,6 +309,21 @@ async def complete_google_registration(
             expires_delta=timedelta(days=7)
         )
         
+        # PRINT TOKENS TO SERVER CONSOLE FOR NEW REGISTRATIONS
+        print("\n" + "="*60)
+        print("GOOGLE OAUTH REGISTRATION - TOKENS GENERATED")
+        print("="*60)
+        print(f"New User: {user.email} (ID: {user.id})")
+        print(f"Email: {pending_user['email']}")
+        print(f"Role: {user.role.value}")
+        print("="*60)
+        print(f"ACCESS TOKEN:\n{access_token}")
+        print("="*60)
+        print(f"REFRESH TOKEN:\n{refresh_token}")
+        print("="*60)
+        print("Copy these tokens to authorize your API requests!")
+        print("="*60 + "\n")
+        
         user_permissions = AuthService.get_user_role_permissions(user.role)
         
         # Clean up session
@@ -323,15 +332,12 @@ async def complete_google_registration(
         if 'oauth_temp_id' in request.session:
             del request.session['oauth_temp_id']
         
-        print("DEBUG: Registration completed successfully")
-        
         return HTMLResponse(content=create_success_html(
             user, pending_user, access_token, refresh_token, user_permissions, is_new_user=True
         ))
         
     except Exception as e:
-        print(f"DEBUG: ERROR in complete registration: {str(e)}")
-        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+        print(f"ERROR in complete registration: {str(e)}")
         return HTMLResponse(content=create_error_html(str(e)), status_code=400)
 
 # HTML Template Functions
