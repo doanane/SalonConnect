@@ -1,8 +1,9 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta
-import jwt  # ADD THIS IMPORT
-from app.core.config import settings  # ADD THIS IMPORT
+import jwt  
+from app.core.config import settings  
+import secrets
 
 from app.models.user import User, UserProfile, UserRole, PendingUser, UserOTP
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token, UserProfileUpdate, OTPLoginRequest, OTPVerifyRequest
@@ -351,3 +352,82 @@ class AuthService:
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
+
+
+    
+    @staticmethod
+    async def register_google_user(db: Session, google_user: dict, role: UserRole = UserRole.CUSTOMER):
+        try:
+            existing_user = db.query(User).filter(User.email == google_user['email']).first()
+            
+            if existing_user:
+                if not existing_user.is_verified:
+                    existing_user.is_verified = True
+                
+                if existing_user.first_name != google_user['first_name'] or existing_user.last_name != google_user['last_name']:
+                    existing_user.first_name = google_user['first_name']
+                    existing_user.last_name = google_user['last_name']
+                    existing_user.updated_at = datetime.utcnow()
+                
+                db.commit()
+                db.refresh(existing_user)
+                return existing_user
+            
+            auto_password = f"google_oauth_{secrets.token_urlsafe(12)}"
+            hashed_password = get_password_hash(auto_password)
+            
+            user_role = UserRole.CUSTOMER
+            if google_user['email'] in settings.ADMIN_EMAILS:
+                user_role = UserRole.ADMIN
+            elif role:
+                user_role = role
+            
+            user = User(
+                email=google_user['email'],
+                password=hashed_password,
+                first_name=google_user['first_name'],
+                last_name=google_user['last_name'],
+                role=user_role,
+                is_verified=True,
+                is_active=True
+            )
+            
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+            profile = UserProfile(user_id=user.id)
+            db.add(profile)
+            db.commit()
+            
+            print(f"Created new user via Google OAuth: {user.email} with role: {user.role}")
+            return user
+            
+        except Exception as e:
+            db.rollback()
+            print(f"Error creating Google OAuth user: {e}")
+            raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
+    
+    @staticmethod
+    def get_user_role_permissions(role: UserRole):
+        permissions = {
+            UserRole.CUSTOMER: [
+                "view_salons", "book_appointments", "manage_own_bookings", 
+                "view_own_profile", "update_own_profile", "favorite_salons"
+            ],
+            UserRole.VENDOR: [
+                "manage_salons", "manage_bookings", "view_reports", 
+                "update_business_info", "manage_services", "view_analytics"
+            ],
+            UserRole.ADMIN: [
+                "manage_users", "manage_all_salons", "view_all_reports",
+                "system_configuration", "content_moderation", "all_permissions"
+            ]
+        }
+        return permissions.get(role, [])
+    
+    @staticmethod
+    def can_user_access(user: User, permission: str):
+        user_permissions = AuthService.get_user_role_permissions(user.role)
+        return permission in user_permissions
+
