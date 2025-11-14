@@ -12,11 +12,6 @@ import json
 
 router = APIRouter()
 
-@router.get("/google")
-async def google_login(request: Request):
-    """Start Google OAuth login flow"""
-    print("User initiating Google login...")
-    return await GoogleOAuthService.get_authorization_url(request)
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):

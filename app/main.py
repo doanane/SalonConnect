@@ -37,7 +37,7 @@ async def keep_alive():
 async def lifespan(app: FastAPI):
     print(" Salon Connect API Starting...")
     
-    # Start keep-alive only in production
+ 
     if settings.IS_PRODUCTION:
         print(" Starting production keep-alive service...")
         keep_alive_task = asyncio.create_task(keep_alive())
@@ -56,7 +56,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Session middleware for OAuth
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 app.add_middleware(
@@ -74,7 +73,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router, prefix="/api/users", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
-app.include_router(google_oauth.router, prefix="/api/auth", tags=["Google OAuth"])
+# app.include_router(google_oauth.router, prefix="/api/auth", tags=["Google OAuth"])
 app.include_router(salons.router, prefix="/api/salons", tags=["Salons"])
 app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
