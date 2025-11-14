@@ -1,33 +1,36 @@
-from fastapi import APIRouter, Request, Depends, Form, status
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import APIRouter, Request, Depends, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from app.database import get_db
-from app.services.google_oauth_service import google_oauth_service
+from app.services.google_oauth_manual import google_oauth_manual
 from app.services.auth import AuthService
 from app.core.security import create_access_token
 from app.models.user import User, UserRole
 from app.schemas.user import GoogleOAuthRegister
 from app.core.config import settings
 import json
+import secrets
 
 router = APIRouter()
 
 # Google OAuth Login
 @router.get("/google/login", tags=["Google OAuth"])
 async def google_login(request: Request):
-    return await google_oauth_service.get_authorization_url(request, is_registration=False)
+    auth_url = await google_oauth_manual.start_oauth(request, is_registration=False)
+    return RedirectResponse(url=auth_url)
 
 # Google OAuth Registration
 @router.get("/google/register", tags=["Google OAuth"])
 async def google_register(request: Request):
-    return await google_oauth_service.get_authorization_url(request, is_registration=True)
+    auth_url = await google_oauth_manual.start_oauth(request, is_registration=True)
+    return RedirectResponse(url=auth_url)
 
 # OAuth Callback Handler
 @router.get("/google/callback", tags=["Google OAuth"])
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     try:
-        google_user, oauth_purpose = await google_oauth_service.handle_callback(request)
+        google_user, oauth_purpose = await google_oauth_manual.handle_callback(request)
         
         # Check if user exists
         existing_user = db.query(User).filter(User.email == google_user['email']).first()
@@ -50,7 +53,8 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         
         elif oauth_purpose == 'registration':
             # New user for registration - show role selection form
-            return HTMLResponse(content=create_registration_form(google_user, request.session.get('oauth_temp_id')))
+            temp_session_id = request.session.get('oauth_temp_id')
+            return HTMLResponse(content=create_registration_form(google_user, temp_session_id))
         else:
             # New user but trying to login - redirect to registration
             return HTMLResponse(content=create_redirect_to_registration(google_user))
@@ -354,7 +358,7 @@ def create_success_html(user, google_user, access_token, refresh_token, permissi
     </head>
     <body>
         <div class="container">
-            <div class="success">✓</div>
+            <div class="success">Success</div>
             <h2>{welcome_message}</h2>
             
             <div class="user-info">
@@ -493,7 +497,7 @@ def create_error_html(error_message):
     </head>
     <body>
         <div class="container">
-            <div class="error">✗</div>
+            <div class="error">Error</div>
             <h2>Authentication Failed</h2>
             <p><strong>Error:</strong> {error_message}</p>
             <button onclick="window.close()" style="
@@ -516,7 +520,7 @@ async def test_oauth_config():
     return {
         "google_configured": bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET),
         "redirect_uri": settings.GOOGLE_REDIRECT_URI,
-        "admin_emails": settings.ADMIN_EMAILS,
+        "admin_emails": settings.get_admin_emails_list(),
         "endpoints": {
             "login": "/api/auth/google/login",
             "register": "/api/auth/google/register", 
