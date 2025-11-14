@@ -93,6 +93,30 @@ class UserProfileUpdate(UserProfileBase):
     pass
 
 
+# Add these schemas to your existing schemas
+
+class GoogleOAuthRegister(BaseModel):
+    role: UserRole
+    phone_number: Optional[str] = None
+    
+    @validator('phone_number')
+    def validate_phone_number(cls, v):
+        if v and not v.startswith('+'):
+            raise ValueError('Phone number must start with country code (e.g., +1234567890)')
+        return v
+
+class GoogleUserInfo(BaseModel):
+    email: str
+    first_name: str
+    last_name: str
+    picture: Optional[str] = None
+    google_id: str
+    email_verified: bool
+
+class OAuthSessionData(BaseModel):
+    google_user: GoogleUserInfo
+    temp_session_id: str
+    
 class UserProfileResponse(BaseModel):
     id: int
     user_id: int

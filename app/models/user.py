@@ -33,7 +33,10 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
-    
+       # Add these fields for OAuth
+    google_id = Column(String(255), unique=True, index=True)  # Store Google user ID
+    is_oauth_user = Column(Boolean, default=False)  # Track if user registered via OAuth
+
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     salons = relationship("Salon", back_populates="owner")
     bookings = relationship("Booking", back_populates="customer")

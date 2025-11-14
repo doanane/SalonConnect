@@ -56,8 +56,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Session middleware for OAuth
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+# Session middleware for OAuth - Enhanced configuration
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="salonconnect_session",
+    max_age=3600,  
+    same_site="lax",
+    https_only=settings.IS_PRODUCTION,
+    domain=None,  
+)
 
 app.add_middleware(
     CORSMiddleware,

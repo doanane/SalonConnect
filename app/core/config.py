@@ -1,6 +1,7 @@
 import os
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
+from typing import List
 
 load_dotenv()
 
@@ -40,8 +41,8 @@ class Settings(BaseSettings):
     RENDER_EXTERNAL_URL: str = os.getenv("RENDER_EXTERNAL_URL", "")
     RENDER: bool = os.getenv("RENDER", "False").lower() == "true"
     
-    # Admin configuration
-    ADMIN_EMAILS: list = os.getenv("ADMIN_EMAILS", "anane365221@gmail.com").split(",")
+    # Admin configuration - Fix: Handle as string and convert to list
+    ADMIN_EMAILS: str = os.getenv("ADMIN_EMAILS", "anane365221@gmail.com")
     
     @property
     def IS_PRODUCTION(self):
@@ -56,9 +57,14 @@ class Settings(BaseSettings):
     @property
     def GOOGLE_REDIRECT_URI(self):
         return f"{self.CURRENT_BASE_URL}/api/auth/google/callback"
+    
+    def get_admin_emails_list(self) -> List[str]:
+        """Convert comma-separated admin emails to list"""
+        return [email.strip() for email in self.ADMIN_EMAILS.split(',') if email.strip()]
 
 settings = Settings()
 
 print(f"Environment: {'PRODUCTION' if settings.IS_PRODUCTION else 'DEVELOPMENT'}")
 print(f"Backend URL: {settings.CURRENT_BASE_URL}")
 print(f"Google Redirect: {settings.GOOGLE_REDIRECT_URI}")
+print(f"Admin Emails: {settings.get_admin_emails_list()}")

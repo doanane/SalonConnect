@@ -6,7 +6,7 @@ from app.core.config import settings
 import secrets
 
 from app.models.user import User, UserProfile, UserRole, PendingUser, UserOTP
-from app.schemas.user import UserCreate, UserResponse, UserLogin, Token, UserProfileUpdate, OTPLoginRequest, OTPVerifyRequest
+from app.schemas.user import UserCreate, UserResponse, UserLogin, Token, UserProfileUpdate, OTPLoginRequest, OTPVerifyRequest,GoogleOAuthRegister
 from app.core.security import get_password_hash, verify_password, create_access_token, verify_token
 from app.services.email import EmailService
 
@@ -431,3 +431,160 @@ class AuthService:
         user_permissions = AuthService.get_user_role_permissions(user.role)
         return permission in user_permissions
 
+
+
+    @staticmethod
+    async def register_google_user(db: Session, google_user: dict, registration_data: GoogleOAuthRegister = None):
+        try:
+            # Check if user already exists
+            existing_user = db.query(User).filter(User.email == google_user['email']).first()
+            
+            if existing_user:
+                # Update existing user with Google info if needed
+                if not existing_user.google_id:
+                    existing_user.google_id = google_user['google_id']
+                    existing_user.is_oauth_user = True
+                
+                if not existing_user.is_verified:
+                    existing_user.is_verified = True
+                
+                # Update name if different
+                if (existing_user.first_name != google_user['first_name'] or 
+                    existing_user.last_name != google_user['last_name']):
+                    existing_user.first_name = google_user['first_name']
+                    existing_user.last_name = google_user['last_name']
+                    existing_user.updated_at = datetime.utcnow()
+                
+                db.commit()
+                db.refresh(existing_user)
+                return existing_user, False  # False means existing user
+            
+            # Create new user
+            auto_password = f"google_oauth_{secrets.token_urlsafe(12)}"
+            hashed_password = get_password_hash(auto_password)
+            
+            # Determine role
+            user_role = UserRole.CUSTOMER
+            if google_user['email'] in settings.ADMIN_EMAILS:
+                user_role = UserRole.ADMIN
+            elif registration_data and registration_data.role:
+                user_role = registration_data.role
+            
+            user = User(
+                email=google_user['email'],
+                password=hashed_password,
+                first_name=google_user['first_name'],
+                last_name=google_user['last_name'],
+                role=user_role,
+                google_id=google_user['google_id'],
+                is_oauth_user=True,
+                is_verified=True,
+                is_active=True
+            )
+            
+            # Add phone number if provided during registration
+            if registration_data and registration_data.phone_number:
+                user.phone_number = registration_data.phone_number
+            
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+            # Create user profile
+            profile = UserProfile(user_id=user.id)
+            if google_user.get('picture'):
+                profile.profile_picture = google_user['picture']
+            db.add(profile)
+            db.commit()
+            
+            print(f"Created new user via Google OAuth: {user.email} with role: {user.role}")
+            return user, True  # True means new user
+            
+        except Exception as e:
+            db.rollback()
+            print(f"Error creating Google OAuth user: {e}")
+            raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
+    
+    @staticmethod
+    def send_welcome_notification(user: User, is_new_user: bool):
+        """Send welcome email to new users"""
+        try:
+            if is_new_user:
+                subject = "Welcome to Salon Connect!"
+                html_content = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+                        .content {{ background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }}
+                        .role-badge {{ display: inline-block; background: #007bff; color: white; padding: 5px 15px; border-radius: 20px; font-size: 14px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Welcome to Salon Connect! 🎉</h1>
+                        </div>
+                        <div class="content">
+                            <h2>Hello {user.first_name} {user.last_name}!</h2>
+                            <p>Thank you for joining Salon Connect. We're excited to have you on board!</p>
+                            
+                            <p><strong>Your Account Details:</strong></p>
+                            <ul>
+                                <li><strong>Email:</strong> {user.email}</li>
+                                <li><strong>Role:</strong> <span class="role-badge">{user.role.value.upper()}</span></li>
+                                <li><strong>Account Type:</strong> Google OAuth</li>
+                            </ul>
+                            
+                            <p>As a {user.role.value}, you can now:</p>
+                            {"<ul><li>Browse and book salon services</li><li>Manage your appointments</li><li>Save favorite salons</li><li>Write reviews</li></ul>" if user.role == UserRole.CUSTOMER else 
+                             "<ul><li>Create and manage your salon profile</li><li>Accept bookings from customers</li><li>Manage your services and availability</li><li>Track your business performance</li></ul>"}
+                            
+                            <p>If you have any questions, feel free to reach out to our support team.</p>
+                            
+                            <p>Best regards,<br>The Salon Connect Team</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                # Send welcome email
+                EmailService.send_email(
+                    to_email=user.email,
+                    subject=subject,
+                    html_content=html_content
+                )
+                print(f"Welcome email sent to: {user.email}")
+            
+        except Exception as e:
+            print(f"Failed to send welcome notification: {e}")
+    
+    @staticmethod
+    def get_user_role_permissions(role: UserRole):
+        permissions = {
+            UserRole.CUSTOMER: [
+                "view_salons", "book_appointments", "manage_own_bookings", 
+                "view_own_profile", "update_own_profile", "favorite_salons",
+                "write_reviews", "cancel_own_bookings", "view_booking_history"
+            ],
+            UserRole.VENDOR: [
+                "manage_salons", "manage_bookings", "view_reports", 
+                "update_business_info", "manage_services", "view_analytics",
+                "manage_availability", "process_payments", "manage_staff"
+            ],
+            UserRole.ADMIN: [
+                "manage_users", "manage_all_salons", "view_all_reports",
+                "system_configuration", "content_moderation", "all_permissions",
+                "manage_payments", "view_analytics", "manage_system_settings"
+            ]
+        }
+        return permissions.get(role, [])
+    
+    @staticmethod
+    def can_user_access(user: User, permission: str):
+        user_permissions = AuthService.get_user_role_permissions(user.role)
+        return permission in user_permissions
