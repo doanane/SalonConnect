@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Request, Depends, Form
+from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from app.database import get_db
-from app.services.google_oauth_manual import google_oauth_manual
 from app.services.auth import AuthService
 from app.core.security import create_access_token
 from app.models.user import User, UserRole
@@ -11,14 +10,146 @@ from app.schemas.user import GoogleOAuthRegister
 from app.core.config import settings
 import json
 import secrets
+import time
+import httpx
 
 router = APIRouter()
+
+class GoogleOAuthService:
+    async def start_oauth(self, request: Request, is_registration: bool = False):
+        """Start OAuth flow and return authorization URL"""
+        try:
+            if not settings.GOOGLE_CLIENT_ID:
+                raise HTTPException(status_code=500, detail="Google OAuth not configured")
+
+            state = secrets.token_urlsafe(32)
+            
+            # Store in session
+            request.session['oauth_state'] = state
+            request.session['oauth_timestamp'] = time.time()
+            request.session['oauth_purpose'] = 'registration' if is_registration else 'login'
+            
+            # Build authorization URL
+            auth_url = (
+                f"https://accounts.google.com/o/oauth2/v2/auth?"
+                f"client_id={settings.GOOGLE_CLIENT_ID}&"
+                f"redirect_uri={settings.GOOGLE_REDIRECT_URI}&"
+                f"response_type=code&"
+                f"scope=email%20profile%20openid&"
+                f"state={state}&"
+                f"access_type=offline&"
+                f"prompt=select_account"
+            )
+            
+            return auth_url
+            
+        except Exception as e:
+            print(f"Error generating authorization URL: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to start OAuth: {str(e)}")
+
+    async def handle_callback(self, request: Request):
+        """Handle OAuth callback from Google"""
+        try:
+            # Get query parameters
+            error = request.query_params.get('error')
+            code = request.query_params.get('code')
+            state = request.query_params.get('state')
+            
+            if error:
+                error_description = request.query_params.get('error_description', 'Authentication failed')
+                raise HTTPException(status_code=400, detail=f"Google OAuth error: {error_description}")
+            
+            if not code:
+                raise HTTPException(status_code=400, detail="No authorization code received")
+            
+            if not state:
+                raise HTTPException(status_code=400, detail="No state parameter received")
+            
+            # Verify state
+            stored_state = request.session.get('oauth_state')
+            stored_timestamp = request.session.get('oauth_timestamp')
+            oauth_purpose = request.session.get('oauth_purpose', 'login')
+            
+            if not stored_state or stored_state != state:
+                raise HTTPException(status_code=400, detail="Session expired. Please try again.")
+            
+            if stored_timestamp and (time.time() - stored_timestamp) > 600:
+                raise HTTPException(status_code=400, detail="Session expired")
+            
+            # Exchange code for tokens
+            async with httpx.AsyncClient() as client:
+                token_response = await client.post(
+                    "https://oauth2.googleapis.com/token",
+                    data={
+                        'client_id': settings.GOOGLE_CLIENT_ID,
+                        'client_secret': settings.GOOGLE_CLIENT_SECRET,
+                        'code': code,
+                        'grant_type': 'authorization_code',
+                        'redirect_uri': settings.GOOGLE_REDIRECT_URI,
+                    }
+                )
+                
+                if token_response.status_code != 200:
+                    error_detail = token_response.text
+                    print(f"Token exchange failed: {error_detail}")
+                    raise HTTPException(status_code=400, detail="Failed to exchange authorization code")
+                
+                token_data = token_response.json()
+                access_token = token_data.get('access_token')
+            
+            # Get user info
+            async with httpx.AsyncClient() as client:
+                userinfo_response = await client.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {access_token}"}
+                )
+                
+                if userinfo_response.status_code != 200:
+                    raise HTTPException(status_code=400, detail="Failed to get user information")
+                
+                user_info = userinfo_response.json()
+            
+            # Prepare user data
+            google_user_data = {
+                'email': user_info['email'],
+                'first_name': user_info.get('given_name', ''),
+                'last_name': user_info.get('family_name', ''),
+                'picture': user_info.get('picture', ''),
+                'google_id': user_info['sub'],
+                'email_verified': user_info.get('email_verified', False)
+            }
+            
+            # Store for registration if needed
+            if oauth_purpose == 'registration':
+                request.session['pending_google_user'] = google_user_data
+                request.session['oauth_temp_id'] = secrets.token_urlsafe(16)
+            
+            # Clean up session
+            self._cleanup_oauth_session(request)
+            
+            return google_user_data, oauth_purpose
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"OAuth callback error: {e}")
+            raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
+    
+    def _cleanup_oauth_session(self, request: Request):
+        """Clean up OAuth session data"""
+        session_keys = ['oauth_state', 'oauth_timestamp', 'oauth_purpose']
+        for key in session_keys:
+            if key in request.session:
+                del request.session[key]
+
+# Create global instance
+google_oauth_service = GoogleOAuthService()
 
 # Google OAuth Login - Returns JSON for API calls, Redirect for browser
 @router.get("/google/login", tags=["Google OAuth"], response_class=JSONResponse)
 async def google_login(request: Request):
     try:
-        auth_url = await google_oauth_manual.start_oauth(request, is_registration=False)
+        auth_url = await google_oauth_service.start_oauth(request, is_registration=False)
         
         # Check if this is an API call (based on headers)
         accept_header = request.headers.get("accept", "")
@@ -45,7 +176,7 @@ async def google_login(request: Request):
 @router.get("/google/register", tags=["Google OAuth"], response_class=JSONResponse)
 async def google_register(request: Request):
     try:
-        auth_url = await google_oauth_manual.start_oauth(request, is_registration=True)
+        auth_url = await google_oauth_service.start_oauth(request, is_registration=True)
         
         # Check if this is an API call (based on headers)
         accept_header = request.headers.get("accept", "")
@@ -72,7 +203,7 @@ async def google_register(request: Request):
 @router.get("/google/callback", tags=["Google OAuth"])
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     try:
-        google_user, oauth_purpose = await google_oauth_manual.handle_callback(request)
+        google_user, oauth_purpose = await google_oauth_service.handle_callback(request)
         
         # Check if user exists
         existing_user = db.query(User).filter(User.email == google_user['email']).first()
