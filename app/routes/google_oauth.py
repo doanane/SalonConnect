@@ -226,7 +226,12 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         
         elif oauth_purpose == 'registration':
             # New user for registration - show role selection form
+            # FIX: Generate temp_session_id here if not already set
             temp_session_id = request.session.get('oauth_temp_id')
+            if not temp_session_id:
+                temp_session_id = secrets.token_urlsafe(16)
+                request.session['oauth_temp_id'] = temp_session_id
+            
             return HTMLResponse(content=create_registration_form(google_user, temp_session_id))
         else:
             # New user but trying to login - redirect to registration
@@ -235,13 +240,13 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         return HTMLResponse(content=create_error_html(str(e)), status_code=400)
 
-# Complete Registration
+
 @router.post("/google/complete-registration", tags=["Google OAuth"])
 async def complete_google_registration(
     request: Request,
     role: str = Form(...),
     phone_number: str = Form(None),
-    temp_session_id: str = Form(...),
+    temp_session_id: str = Form(None),  # Make it optional
     db: Session = Depends(get_db)
 ):
     try:
@@ -249,8 +254,14 @@ async def complete_google_registration(
         pending_user = request.session.get('pending_google_user')
         stored_temp_id = request.session.get('oauth_temp_id')
         
-        if not pending_user or stored_temp_id != temp_session_id:
+        # If temp_session_id not provided, use the stored one
+        if not temp_session_id:
+            temp_session_id = stored_temp_id
+        
+        if not pending_user or not temp_session_id or stored_temp_id != temp_session_id:
             raise HTTPException(status_code=400, detail="Registration session expired. Please start over.")
+        
+  
         
         # Validate role
         try:
@@ -712,3 +723,4 @@ async def debug_session(request: Request):
         "oauth_purpose": request.session.get('oauth_purpose') if hasattr(request, 'session') else None
     }
     return session_data
+
