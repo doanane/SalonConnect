@@ -70,8 +70,8 @@ app.add_middleware(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://saloonconnect.vercel.app",
         "http://localhost:3000",
+        "https://saloonconnect.vercel.app",
         "http://127.0.0.1:3000"
     ],
     allow_credentials=True,
@@ -108,7 +108,7 @@ async def health_check():
 
 @app.get("/ping")
 async def ping():
-    return {"message": "pong"}
+    return {"message": "ping"}
 
 if __name__ == "__main__":
     import uvicorn
