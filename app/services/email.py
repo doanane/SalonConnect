@@ -533,6 +533,90 @@ class EmailService:
             print(f"Error sending payment confirmation: {e}")
             return False
 
+
+# Add this method to your EmailService class
+
+    @staticmethod
+    def send_vendor_verification_email(user, verification_url, vendor_data):
+        """Send vendor-specific verification email"""
+        try:
+            subject = "Welcome to Salon Connect - Vendor Account Verification"
+            
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .header {{ background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+                    .content {{ background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }}
+                    .info-box {{ background: white; border-left: 4px solid #4CAF50; padding: 15px; margin: 20px 0; }}
+                    .btn {{ display: inline-block; background: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Welcome to Salon Connect! 🏢</h1>
+                        <p>Business Account Registration</p>
+                    </div>
+                    <div class="content">
+                        <h2>Hello {user.first_name} {user.last_name}!</h2>
+                        <p>Thank you for registering as a vendor on Salon Connect. We're excited to help you grow your business!</p>
+                        
+                        <div class="info-box">
+                            <h3>Your Business Information:</h3>
+                            <p><strong>Business Name:</strong> {vendor_data.business_name}</p>
+                            <p><strong>Contact Phone:</strong> {vendor_data.phone_number}</p>
+                            <p><strong>Business Phone:</strong> {vendor_data.business_phone}</p>
+                            <p><strong>Business Address:</strong> {vendor_data.business_address}, {vendor_data.business_city}, {vendor_data.business_state}, {vendor_data.business_country}</p>
+                        </div>
+                        
+                        <p>To complete your vendor registration and start listing your salon, please verify your email address:</p>
+                        
+                        <p style="text-align: center; margin: 30px 0;">
+                            <a href="{verification_url}" class="btn">Verify Email Address</a>
+                        </p>
+                        
+                        <p>After verification, you can:</p>
+                        <ul>
+                            <li>Create your salon profile</li>
+                            <li>Add services and pricing</li>
+                            <li>Set your availability</li>
+                            <li>Start accepting bookings from customers</li>
+                            <li>Manage your business dashboard</li>
+                        </ul>
+                        
+                        <p><strong>Next Steps:</strong></p>
+                        <ol>
+                            <li>Verify your email (click the button above)</li>
+                            <li>Complete your vendor profile</li>
+                            <li>Add your first salon</li>
+                            <li>Start accepting bookings!</li>
+                        </ol>
+                        
+                        <p>If you have any questions, please contact our vendor support team.</p>
+                        
+                        <p>Best regards,<br>The Salon Connect Team</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Send email
+            EmailService.send_email(
+                to_email=user.email,
+                subject=subject,
+                html_content=html_content
+            )
+            print(f"Vendor verification email sent to: {user.email}")
+            return True
+            
+        except Exception as e:
+            print(f"Failed to send vendor verification email: {e}")
+            return False
     @staticmethod
     def generate_verification_token(email: str) -> str:
         payload = {

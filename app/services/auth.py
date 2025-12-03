@@ -4,7 +4,9 @@ from datetime import datetime, timedelta
 import jwt  
 from app.core.config import settings  
 import secrets
+from app.schemas.user import CustomerRegister, VendorRegister
 
+import os
 from app.models.user import User, UserProfile, UserRole, PendingUser, UserOTP
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token, UserProfileUpdate, OTPLoginRequest, OTPVerifyRequest,GoogleOAuthRegister
 from app.core.security import get_password_hash, verify_password, create_access_token, verify_token
@@ -432,6 +434,180 @@ class AuthService:
         return permission in user_permissions
 
 
+
+    @staticmethod
+    def register_customer(db: Session, customer_data: CustomerRegister):
+        """Register a new customer"""
+        try:
+            print(f" [AUTH] Customer registration attempt for: {customer_data.email}")
+            
+            # Check if email already exists
+            existing_user = db.query(User).filter(User.email == customer_data.email).first()
+            if existing_user:
+                raise HTTPException(status_code=400, detail="Email already registered")
+            
+            existing_pending = db.query(PendingUser).filter(PendingUser.email == customer_data.email).first()
+            if existing_pending:
+                # Resend verification email
+                verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={existing_pending.verification_token}"
+                temp_user = User(
+                    email=existing_pending.email,
+                    first_name=existing_pending.first_name,
+                    last_name=existing_pending.last_name
+                )
+                EmailService.send_verification_email(temp_user, verification_url)
+                raise HTTPException(status_code=400, detail="Verification email already sent. Please check your email.")
+            
+            # Check phone number
+            if customer_data.phone_number:
+                existing_phone = db.query(User).filter(User.phone_number == customer_data.phone_number).first()
+                if existing_phone:
+                    raise HTTPException(status_code=400, detail="Phone number already registered")
+
+            hashed_password = get_password_hash(customer_data.password)
+            
+            # Create pending user with CUSTOMER role
+            verification_token = EmailService.generate_verification_token(customer_data.email)
+            pending_user = PendingUser(
+                email=customer_data.email,
+                phone_number=customer_data.phone_number,
+                password=hashed_password,
+                first_name=customer_data.first_name,
+                last_name=customer_data.last_name,
+                role=UserRole.CUSTOMER,  # Always CUSTOMER for this endpoint
+                verification_token=verification_token,
+                expires_at=datetime.utcnow() + timedelta(hours=24)
+            )
+            
+            db.add(pending_user)
+            db.commit()
+            db.refresh(pending_user)
+            
+            # Send verification email
+            temp_user = User(
+                email=customer_data.email,
+                first_name=customer_data.first_name,
+                last_name=customer_data.last_name
+            )
+            verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={verification_token}"
+            email_sent = EmailService.send_verification_email(temp_user, verification_url)
+            
+            return {
+                "message": "Customer registration successful! Please check your email for verification link.",
+                "email_sent": email_sent,
+                "debug_info": {
+                    "verification_url": verification_url,
+                    "email": customer_data.email,
+                    "role": "customer"
+                } if os.getenv("DEBUG") == "True" else None
+            }
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[AUTH] Customer registration error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Customer registration failed. Please try again."
+            )
+
+    @staticmethod
+    def register_vendor(db: Session, vendor_data: VendorRegister):
+        """Register a new vendor with business info"""
+        try:
+            print(f" [AUTH] Vendor registration attempt for: {vendor_data.email}")
+            
+            # Check if email already exists
+            existing_user = db.query(User).filter(User.email == vendor_data.email).first()
+            if existing_user:
+                raise HTTPException(status_code=400, detail="Email already registered")
+            
+            existing_pending = db.query(PendingUser).filter(PendingUser.email == vendor_data.email).first()
+            if existing_pending:
+                # Resend verification email
+                verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={existing_pending.verification_token}"
+                temp_user = User(
+                    email=existing_pending.email,
+                    first_name=existing_pending.first_name,
+                    last_name=existing_pending.last_name
+                )
+                EmailService.send_verification_email(temp_user, verification_url)
+                raise HTTPException(status_code=400, detail="Verification email already sent. Please check your email.")
+            
+            # Check phone numbers
+            existing_phone = db.query(User).filter(User.phone_number == vendor_data.phone_number).first()
+            if existing_phone:
+                raise HTTPException(status_code=400, detail="Phone number already registered")
+            
+            # Check business phone (optional additional check)
+            existing_business_phone = db.query(User).filter(User.phone_number == vendor_data.business_phone).first()
+            if existing_business_phone:
+                raise HTTPException(status_code=400, detail="Business phone number already registered")
+
+            hashed_password = get_password_hash(vendor_data.password)
+            
+            # Create pending user with VENDOR role
+            verification_token = EmailService.generate_verification_token(vendor_data.email)
+            pending_user = PendingUser(
+                email=vendor_data.email,
+                phone_number=vendor_data.phone_number,
+                password=hashed_password,
+                first_name=vendor_data.first_name,
+                last_name=vendor_data.last_name,
+                role=UserRole.VENDOR,  # Always VENDOR for this endpoint
+                verification_token=verification_token,
+                expires_at=datetime.utcnow() + timedelta(hours=24)
+            )
+            
+            db.add(pending_user)
+            db.commit()
+            db.refresh(pending_user)
+            
+            # Send vendor-specific verification email
+            temp_user = User(
+                email=vendor_data.email,
+                first_name=vendor_data.first_name,
+                last_name=vendor_data.last_name,
+                role=UserRole.VENDOR
+            )
+            verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={verification_token}"
+            email_sent = EmailService.send_vendor_verification_email(temp_user, verification_url, vendor_data)
+            
+            # Store business info
+            from app.models.vendor import VendorBusinessInfo
+            business_info = VendorBusinessInfo(
+                email=vendor_data.email,
+                business_name=vendor_data.business_name,
+                business_phone=vendor_data.business_phone,
+                business_address=vendor_data.business_address,
+                business_city=vendor_data.business_city,
+                business_state=vendor_data.business_state,
+                business_country=vendor_data.business_country,
+                # DO NOT include updated_at here - it will be set automatically on update
+                # DO NOT include created_at either - it's set by server_default=func.now()
+            )
+            db.add(business_info)
+            db.commit()
+            
+            return {
+                "message": "Vendor registration successful! Please check your email for verification link.",
+                "email_sent": email_sent,
+                "debug_info": {
+                    "verification_url": verification_url,
+                    "email": vendor_data.email,
+                    "role": "vendor",
+                    "business_name": vendor_data.business_name
+                } if os.getenv("DEBUG") == "True" else None
+            }
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[AUTH] Vendor registration error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Vendor registration failed. Please try again."
+            )
 
     @staticmethod
     async def register_google_user(db: Session, google_user: dict, registration_data: GoogleOAuthRegister = None):
