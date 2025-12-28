@@ -1,42 +1,27 @@
-# # create_tables.py
-# import sys
-# import os
+import os
+import sys
 
-# # Add the parent directory to the Python path
-# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the current directory to sys.path so we can import from app
+sys.path.append(os.getcwd())
 
-# from app.database import engine, Base
-# from app.models.user import User, UserProfile, PasswordReset, PendingUser, UserOTP
-# from app.models.salon import Salon, Service, SalonImage, Review
-# from app.models.booking import Booking, BookingItem
-# from app.models.payment import Payment
-# import traceback
+from app.database import engine, Base
+# Import all models to ensure they are registered with Base.metadata
+from app.models import (
+    User, UserProfile, PasswordReset, UserRole, user_favorites, PendingUser, UserOTP,
+    Salon, Service, SalonImage, Review,
+    Booking, BookingItem, BookingStatus,
+    Payment, PaymentStatus, PaymentMethod,
+    VendorBusinessInfo, VendorKYC, IDType, KYCStatus
+)
 
-# def create_all_tables():
-#     try:
-#         print("Creating database tables...")
-        
-#         # Import all models to ensure they're registered with Base.metadata
-#         from app import models
-        
-#         # Create all tables at once using Base.metadata
-#         Base.metadata.create_all(bind=engine)
-        
-#         print("All tables created successfully!")
-#         print("Tables created:")
-#         for table_name in Base.metadata.tables.keys():
-#             print(f"   - {table_name}")
-#         return True
-#     except Exception as e:
-#         print(f" Error creating tables: {e}")
-#         traceback.print_exc()
-#         return False
+def create_tables():
+    print("Creating tables in database...")
+    try:
+        # This checks the DB and creates any missing tables defined in your models
+        Base.metadata.create_all(bind=engine)
+        print("✅ Tables created successfully!")
+    except Exception as e:
+        print(f"❌ Error creating tables: {e}")
 
-# if __name__ == "__main__":
-#     success = create_all_tables()
-#     if success:
-#         print("Database setup completed!")
-#         sys.exit(0)
-#     else:
-#         print("Database setup failed!")
-#         sys.exit(1)
+if __name__ == "__main__":
+    create_tables()

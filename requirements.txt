@@ -11,6 +11,7 @@ Authlib
 axios
 bcrypt
 billiard
+boto3
 celery
 certifi
 cffi

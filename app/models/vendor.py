@@ -1,8 +1,18 @@
-# app/models/vendor.py
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey  # Added Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+import enum
 from app.database import Base
+
+class IDType(str, enum.Enum):
+    GHANA_CARD = "ghana_card"
+    PASSPORT = "passport"
+    DRIVERS_LICENSE = "drivers_license"
+
+class KYCStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 class VendorBusinessInfo(Base):
     """Store vendor business information"""
@@ -23,15 +33,30 @@ class VendorBusinessInfo(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-class VendorDocument(Base):
-    """Store vendor verification documents"""
-    __tablename__ = "vendor_documents"
+class VendorKYC(Base):
+    """Store vendor Identity Verification Data"""
+    __tablename__ = "vendor_kyc"
     
     id = Column(Integer, primary_key=True, index=True)
-    vendor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    document_type = Column(String(50))
-    document_url = Column(String(500), nullable=False)
-    verified = Column(Boolean, default=False)  # Now Boolean is imported
-    verified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    verified_at = Column(DateTime)
+    vendor_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    
+    # Document Images
+    id_card_front_url = Column(String(500), nullable=False)
+    id_card_back_url = Column(String(500), nullable=False)
+    selfie_url = Column(String(500), nullable=False)
+    
+    # Extracted Data (For Automatic Form Filling & Uniqueness Check)
+    id_type = Column(Enum(IDType), default=IDType.GHANA_CARD)
+    id_number = Column(String(100), unique=True, index=True, nullable=False) # UNIQUE constraint prevents duplicate accounts
+    extracted_name = Column(String(255))
+    extracted_dob = Column(String(50))
+    
+    # Verification Status
+    status = Column(Enum(KYCStatus), default=KYCStatus.PENDING)
+    rejection_reason = Column(Text, nullable=True)
+    
+    verified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    vendor = relationship("User", back_populates="kyc_data")
