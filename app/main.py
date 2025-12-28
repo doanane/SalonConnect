@@ -5,7 +5,8 @@ from starlette.middleware.sessions import SessionMiddleware
 import os
 import asyncio
 import httpx
-from app.routes import auth, users, salons, bookings, payments, vendor, favorites, google_oauth
+# IMPORT THE NEW ROUTER
+from app.routes import auth, users, salons, bookings, payments, vendor, favorites, google_oauth, kyc
 from app.core.config import settings
 
 async def keep_alive():
@@ -88,6 +89,8 @@ app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
 app.include_router(vendor.router, prefix="/api/vendor", tags=["Vendor Management"])
 app.include_router(favorites.router, prefix="/api/users", tags=["Favorites"])
+# ADD KYC ROUTER HERE
+app.include_router(kyc.router, prefix="/api/kyc", tags=["Identity Verification"])
 
 @app.get("/")
 async def root():

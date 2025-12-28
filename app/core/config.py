@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     # Render
     RENDER_EXTERNAL_URL: str = os.getenv("RENDER_EXTERNAL_URL", "")
     RENDER: bool = os.getenv("RENDER", "False").lower() == "true"
+
+    # AWS (Add these lines)
+    AWS_ACCESS_KEY_ID: str = os.getenv("AWS_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY: str = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+    AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
     
     # Admin configuration - Fix: Handle as string and convert to list
     ADMIN_EMAILS: str = os.getenv("ADMIN_EMAILS", "anane365221@gmail.com")

@@ -16,27 +16,18 @@ class EmailService:
             print(f" [SENDGRID] From: {settings.FROM_EMAIL}")
             print(f" [SENDGRID] Subject: {subject}")
             
-            
-     
-            
             if not settings.FROM_EMAIL:
                 print("[SENDGRID] Missing FROM_EMAIL")
                 return False
 
-            
             url = "https://api.sendgrid.com/v3/mail/send"
             
-            
-        
-            
-        
             headers = {
                 "Authorization": f"Bearer {settings.SENDGRID_API_KEY}",
                 "Content-Type": "application/json",
                 "User-Agent": "SalonConnect-API/1.0"
             }
             
-        
             data = {
                 "personalizations": [{
                     "to": [{"email": to_email}],
@@ -145,10 +136,6 @@ class EmailService:
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta name="format-detection" content="telephone=no">
-            <meta name="format-detection" content="date=no">
-            <meta name="format-detection" content="address=no">
-            <meta name="format-detection" content="email=no">
             <title>{subject}</title>
             <style>
                 body, html {{ margin: 0; padding: 0; font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif; line-height: 1.6; color: #333333; background-color: #f6f9fc; }}
@@ -182,16 +169,9 @@ class EmailService:
                     <p style="margin: 0 0 10px 0;" class="small">
                         This is a transactional email from Salon Connect sent to {user_email} regarding your account.
                     </p>
-                    <p style="margin: 0 0 10px 0;" class="small">
-                        Salon Connect | Professional Beauty Services | Ghana
-                    </p>
                     <div class="legal">
                         <p style="margin: 0 0 5px 0;">
                             This email was sent to {user_email} because you have an account with Salon Connect or requested this action.
-                            If you believe you received this email in error, please contact our support team.
-                        </p>
-                        <p style="margin: 0;">
-                            Our mailing address is: Salon Connect, Accra, Ghana
                         </p>
                     </div>
                 </div>
@@ -205,23 +185,17 @@ class EmailService:
                 "subject": "Verify Your Salon Connect Account",
                 "content": f"""
                     <h2 style="color: #2c3e50; margin-bottom: 20px;">Welcome to Salon Connect, {user_data.get('first_name', 'there')}!</h2>
-                    <p>Thank you for choosing Salon Connect - your gateway to professional beauty and wellness services.</p>
+                    <p>Thank you for choosing Salon Connect.</p>
                     <div class="notice">
                         <h3 style="margin-top: 0; color: #2c3e50;">Complete Your Registration</h3>
-                        <p style="margin-bottom: 0;">To activate your account and start booking appointments, please verify your email address by clicking the button below:</p>
+                        <p style="margin-bottom: 0;">Please verify your email address by clicking the button below:</p>
                     </div>
                     <div class="text-center">
                         <a href="{action_url}" class="button" style="color: white; text-decoration: none;">Verify Email Address</a>
                     </div>
                     <div class="warning">
-                        <strong>Important Security Notice:</strong> This verification link expires in 24 hours. Please verify your email promptly to secure your account.
+                        <strong>Important:</strong> This link expires in 24 hours.
                     </div>
-                    <p class="small">If the button doesn't work, copy and paste this link into your browser:</p>
-                    <p class="small" style="word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px;">{action_url}</p>
-                    <div class="spam-alert">
-                        <strong>Email Delivery Tip:</strong> To ensure you receive all important communications from Salon Connect, please add <strong>{settings.FROM_EMAIL}</strong> to your contacts or safe senders list.
-                    </div>
-                    <p class="small">If you didn't create this account, please ignore this email or contact our support team for assistance.</p>
                 """
             },
             "password_reset": {
@@ -230,20 +204,10 @@ class EmailService:
                     <h2 style="color: #2c3e50; margin-bottom: 20px;">Password Reset Request</h2>
                     <p>Hello {user_data.get('first_name', 'there')},</p>
                     <div class="warning">
-                        <h3 style="margin-top: 0; color: #856404;">Security Notice</h3>
-                        <p style="margin-bottom: 0;">We received a request to reset your password for your Salon Connect account. If this wasn't you, please ignore this email.</p>
+                        <p style="margin-bottom: 0;">We received a request to reset your password.</p>
                     </div>
                     <div class="text-center">
                         <a href="{action_url}" class="button" style="color: white; text-decoration: none;">Reset Password</a>
-                    </div>
-                    <div class="warning">
-                        <strong>Time-sensitive Action:</strong> This reset link expires in 1 hour for security reasons. Please reset your password promptly.
-                    </div>
-                    <p class="small">If the button doesn't work, copy and paste this link into your browser:</p>
-                    <p class="small" style="word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px;">{action_url}</p>
-                    <p class="small">For your security, this password reset link can only be used once and will expire after use.</p>
-                    <div class="spam-alert">
-                        <strong>Account Security:</strong> If you didn't request this password reset, your account may be at risk. Please contact our support team immediately.
                     </div>
                 """
             },
@@ -253,20 +217,51 @@ class EmailService:
                     <h2 style="color: #2c3e50; margin-bottom: 20px;">Login Verification Code</h2>
                     <p>Hello {user_data.get('first_name', 'there')},</p>
                     <div class="notice">
-                        <p style="margin-bottom: 15px;">You've requested to log in to your Salon Connect account. Use the following verification code to complete your login:</p>
+                        <p style="margin-bottom: 15px;">Use the following verification code to complete your login:</p>
                     </div>
                     <div class="otp-code">{otp}</div>
                     <div class="warning">
-                        <strong>Security Information:</strong> 
-                        <ul>
-                            <li>This code expires in 10 minutes</li>
-                            <li>Do not share this code with anyone</li>
-                            <li>Salon Connect will never ask for this code via phone or email</li>
+                        <strong>Security Information:</strong> Code expires in 10 minutes.
+                    </div>
+                """
+            },
+            "trial_started": {
+                "subject": "Your 30-Day Premium Trial Has Started! 🚀",
+                "content": f"""
+                    <h2 style="color: #2c3e50;">Verification Successful!</h2>
+                    <p>Hello {user_data.get('first_name', 'Vendor')},</p>
+                    <p>Your identity has been verified. You have officially started your <strong>30-Day Free Trial</strong>.</p>
+                    
+                    <div class="notice">
+                        <h3>Premium Features Unlocked:</h3>
+                        <ul style="text-align: left;">
+                            <li>Unlimited Service Listings</li>
+                            <li>Accept Online Bookings</li>
+                            <li>Advanced Sales Analytics</li>
+                            <li>Verified Vendor Badge</li>
                         </ul>
                     </div>
-                    <p>If you didn't request this login code, please secure your account by changing your password immediately.</p>
-                    <div class="spam-alert">
-                        <strong>Email Delivery:</strong> To ensure you receive all important account notifications, please add <strong>{settings.FROM_EMAIL}</strong> to your safe senders list.
+                    
+                    <p><strong>Trial Expires:</strong> {user_data.get('expiry_date', '30 days')}</p>
+                    
+                    <div class="text-center">
+                        <a href="{action_url}" class="button">Go to Dashboard</a>
+                    </div>
+                """
+            },
+            "trial_ending": {
+                "subject": "Action Required: Trial Ending in 3 Days ⏳",
+                "content": f"""
+                    <h2 style="color: #c0392b;">Your Trial is Expiring Soon</h2>
+                    <p>Hello {user_data.get('first_name', 'Vendor')},</p>
+                    <p>This is a reminder that your free trial ends on <strong>{user_data.get('expiry_date', 'soon')}</strong>.</p>
+                    
+                    <div class="warning">
+                        <p>To avoid losing access to booking features, please choose a subscription plan.</p>
+                    </div>
+                    
+                    <div class="text-center">
+                        <a href="{action_url}" class="button">View Subscription Plans</a>
                     </div>
                 """
             }
@@ -345,47 +340,27 @@ class EmailService:
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Booking Confirmation - Salon Connect</title>
                 <style>
                     body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
                     .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
                     .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }}
                     .content {{ padding: 30px; background: #f9f9f9; }}
                     .booking-details {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-                    .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
                 </style>
             </head>
             <body>
                 <div class="container">
                     <div class="header">
                         <h1>Booking Confirmed! 🎉</h1>
-                        <p>Salon Connect</p>
                     </div>
                     <div class="content">
                         <h2>Hello {user_data['first_name']},</h2>
-                        <p>Your booking has been confirmed. Here are your booking details:</p>
-                        
+                        <p>Your booking details:</p>
                         <div class="booking-details">
-                            <h3>Booking Details</h3>
                             <p><strong>Salon:</strong> {getattr(salon, 'name', 'Unknown Salon')}</p>
-                            <p><strong>Booking Date:</strong> {booking_date}</p>
-                            <p><strong>Booking ID:</strong> #{getattr(booking, 'id', 'N/A')}</p>
-                            <p><strong>Status:</strong> {getattr(booking, 'status', 'Confirmed')}</p>
-                            <p><strong>Total Amount:</strong> GH₵{getattr(booking, 'total_amount', 0):,.2f}</p>
-                            <p><strong>Special Requests:</strong> {getattr(booking, 'special_requests', 'None')}</p>
+                            <p><strong>Date:</strong> {booking_date}</p>
+                            <p><strong>Total:</strong> GH₵{getattr(booking, 'total_amount', 0):,.2f}</p>
                         </div>
-                        
-                        <p>We look forward to serving you! If you need to modify or cancel your booking, please do so at least 2 hours in advance.</p>
-                        
-                        <div style="background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                            <strong>📍 Salon Address:</strong><br>
-                            {getattr(salon, 'address', 'Address not available')}
-                        </div>
-                    </div>
-                    <div class="footer">
-                        <p>Thank you for choosing Salon Connect!</p>
-                        <p>© 2024 Salon Connect. All rights reserved.</p>
                     </div>
                 </div>
             </body>
@@ -393,8 +368,6 @@ class EmailService:
             """
             
             subject = "Booking Confirmation - Salon Connect"
-            
-            print(f"[SENDGRID] Sending booking confirmation to: {user_data['email']}")
             return EmailService.send_email(user_data['email'], subject, html_content)
         except Exception as e:
             print(f"Error sending booking confirmation: {e}")
@@ -419,15 +392,12 @@ class EmailService:
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>New Booking - Salon Connect</title>
                 <style>
                     body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
                     .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
                     .header {{ background: #28a745; color: white; padding: 30px; text-align: center; }}
                     .content {{ padding: 30px; background: #f9f9f9; }}
                     .booking-details {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-                    .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
                 </style>
             </head>
             <body>
@@ -453,18 +423,12 @@ class EmailService:
                         
                         <p>Please log in to your vendor dashboard to manage this booking.</p>
                     </div>
-                    <div class="footer">
-                        <p>Salon Connect Vendor Portal</p>
-                        <p>© 2024 Salon Connect. All rights reserved.</p>
-                    </div>
                 </div>
             </body>
             </html>
             """
             
             subject = "New Booking Received - Salon Connect"
-            
-            print(f"[SENDGRID] Sending booking notification to vendor: {user_data['email']}")
             return EmailService.send_email(user_data['email'], subject, html_content)
         except Exception as e:
             print(f"Error sending vendor notification: {e}")
@@ -484,15 +448,12 @@ class EmailService:
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Payment Confirmed - Salon Connect</title>
                 <style>
                     body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
                     .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
                     .header {{ background: #28a745; color: white; padding: 30px; text-align: center; }}
                     .content {{ padding: 30px; background: #f9f9f9; }}
                     .payment-details {{ background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-                    .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
                 </style>
             </head>
             <body>
@@ -516,25 +477,16 @@ class EmailService:
                         
                         <p>Your booking is now confirmed. We look forward to serving you!</p>
                     </div>
-                    <div class="footer">
-                        <p>Thank you for choosing Salon Connect!</p>
-                        <p>© 2024 Salon Connect. All rights reserved.</p>
-                    </div>
                 </div>
             </body>
             </html>
             """
             
             subject = "Payment Confirmed - Salon Connect"
-            
-            print(f"[SENDGRID] Sending payment confirmation to: {user_data['email']}")
             return EmailService.send_email(user_data['email'], subject, html_content)
         except Exception as e:
             print(f"Error sending payment confirmation: {e}")
             return False
-
-
-# Add this method to your EmailService class
 
     @staticmethod
     def send_vendor_verification_email(user, verification_url, vendor_data):
@@ -588,14 +540,6 @@ class EmailService:
                             <li>Manage your business dashboard</li>
                         </ul>
                         
-                        <p><strong>Next Steps:</strong></p>
-                        <ol>
-                            <li>Verify your email (click the button above)</li>
-                            <li>Complete your vendor profile</li>
-                            <li>Add your first salon</li>
-                            <li>Start accepting bookings!</li>
-                        </ol>
-                        
                         <p>If you have any questions, please contact our vendor support team.</p>
                         
                         <p>Best regards,<br>The Salon Connect Team</p>
@@ -605,18 +549,54 @@ class EmailService:
             </html>
             """
             
-            # Send email
-            EmailService.send_email(
-                to_email=user.email,
-                subject=subject,
-                html_content=html_content
-            )
-            print(f"Vendor verification email sent to: {user.email}")
-            return True
+            return EmailService.send_email(user.email, subject, html_content)
             
         except Exception as e:
             print(f"Failed to send vendor verification email: {e}")
             return False
+
+    @staticmethod
+    def send_trial_started_email(user, expiry_date):
+        """Send email when KYC is approved and trial starts"""
+        try:
+            expiry_str = expiry_date.strftime("%B %d, %Y")
+            user_data = {
+                'email': user.email,
+                'first_name': user.first_name,
+                'expiry_date': expiry_str
+            }
+            # Update this URL to match your frontend dashboard route
+            dashboard_url = f"{settings.FRONTEND_URL}/vendor/dashboard"
+            
+            html_content, subject = EmailService.create_email_template(
+                "trial_started", user_data, action_url=dashboard_url
+            )
+            return EmailService.send_email(user.email, subject, html_content)
+        except Exception as e:
+            print(f"Failed to send trial started email: {e}")
+            return False
+
+    @staticmethod
+    def send_trial_warning_email(user, expiry_date):
+        """Send email when trial is about to expire"""
+        try:
+            expiry_str = expiry_date.strftime("%B %d, %Y")
+            user_data = {
+                'email': user.email,
+                'first_name': user.first_name,
+                'expiry_date': expiry_str
+            }
+            # Update this URL to match your frontend subscription route
+            subscription_url = f"{settings.FRONTEND_URL}/vendor/subscription"
+            
+            html_content, subject = EmailService.create_email_template(
+                "trial_ending", user_data, action_url=subscription_url
+            )
+            return EmailService.send_email(user.email, subject, html_content)
+        except Exception as e:
+            print(f"Failed to send trial warning email: {e}")
+            return False
+
     @staticmethod
     def generate_verification_token(email: str) -> str:
         payload = {
