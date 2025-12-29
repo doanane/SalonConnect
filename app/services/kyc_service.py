@@ -2,6 +2,7 @@ import boto3
 import requests
 import io
 import base64
+import numpy as np
 from PIL import Image
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
@@ -14,11 +15,9 @@ import re
 # Optional dependencies for advanced KYC features
 try:
     import cv2
-    import numpy as np
     CV2_AVAILABLE = True
 except ImportError:
     CV2_AVAILABLE = False
-    np = None
     cv2 = None
 
 try:
@@ -237,69 +236,64 @@ class KYCService:
     async def compare_faces(self, id_photo_url: str, selfie_url: str) -> Dict[str, Any]:
         """Compare faces from ID and selfie using multiple methods"""
         try:
+            if not (FACE_RECOGNITION_AVAILABLE or DEEPFACE_AVAILABLE):
+                return {
+                    'score': 0,
+                    'is_match': False,
+                    'error': 'Face comparison libraries are not available in this deployment',
+                    'methods_scores': {},
+                    'degraded': True
+                }
+            # We always have AWS Rekognition; other methods are optional below.
             # Download images
             id_response = requests.get(id_photo_url)
             selfie_response = requests.get(selfie_url)
             
-            id_image = face_recognition.load_image_file(io.BytesIO(id_response.content))
-            selfie_image = face_recognition.load_image_file(io.BytesIO(selfie_response.content))
+            methods_scores = {}
+            # Method 1: Face Recognition Library (if available)
+            if FACE_RECOGNITION_AVAILABLE:
+                id_image = face_recognition.load_image_file(io.BytesIO(id_response.content))
+                selfie_image = face_recognition.load_image_file(io.BytesIO(selfie_response.content))
+                id_encodings = face_recognition.face_encodings(id_image)
+                selfie_encodings = face_recognition.face_encodings(selfie_image)
+                if id_encodings and selfie_encodings:
+                    face_distance = face_recognition.face_distance([id_encodings[0]], selfie_encodings[0])[0]
+                    methods_scores['face_recognition'] = max(0, 1 - face_distance)
+                else:
+                    methods_scores['face_recognition'] = 0
             
-            # Method 1: Face Recognition Library
-            id_encodings = face_recognition.face_encodings(id_image)
-            selfie_encodings = face_recognition.face_encodings(selfie_image)
+            # Method 2: DeepFace (if available)
+            if DEEPFACE_AVAILABLE:
+                deepface_result = DeepFace.verify(
+                    img1_path=id_photo_url,
+                    img2_path=selfie_url,
+                    model_name='Facenet',
+                    distance_metric='cosine',
+                    enforce_detection=False
+                )
+                methods_scores['deepface'] = 1 - deepface_result.get('distance', 1)
             
-            if not id_encodings or not selfie_encodings:
-                return {
-                    'score': 0,
-                    'is_match': False,
-                    'error': 'No faces detected',
-                    'method': 'face_recognition'
-                }
-            
-            # Get face distances
-            face_distance = face_recognition.face_distance([id_encodings[0]], selfie_encodings[0])[0]
-            face_match_score = max(0, 1 - face_distance)  # Convert distance to similarity score
-            
-            # Method 2: DeepFace for more accurate comparison
-            deepface_result = DeepFace.verify(
-                img1_path=id_photo_url,
-                img2_path=selfie_url,
-                model_name='Facenet',
-                distance_metric='cosine',
-                enforce_detection=False
-            )
-            
-            deepface_score = 1 - deepface_result['distance'] if 'distance' in deepface_result else 0
-            
-            # Combine scores (weighted average)
-            final_score = (face_match_score * 0.4 + deepface_score * 0.6)
-            threshold = getattr(settings, 'FACE_MATCHING_THRESHOLD', 0.75)
-            is_match = final_score >= threshold
-            
-            # Additional analysis using AWS Rekognition
+            # Method 3: AWS Rekognition (always available)
             rekognition_result = self.rekognition_client.compare_faces(
                 SourceImage={'Bytes': id_response.content},
                 TargetImage={'Bytes': selfie_response.content},
                 SimilarityThreshold=70
             )
-            
             rekognition_matches = rekognition_result.get('FaceMatches', [])
-            rekognition_score = rekognition_matches[0].get('Similarity', 0) / 100 if rekognition_matches else 0
+            methods_scores['aws_rekognition'] = rekognition_matches[0].get('Similarity', 0) / 100 if rekognition_matches else 0
             
-            # Final decision with multiple method consensus
-            methods_scores = {
-                'face_recognition': face_match_score,
-                'deepface': deepface_score,
-                'aws_rekognition': rekognition_score
-            }
-            
-            # Weighted final score
-            final_score_weighted = (
-                methods_scores['face_recognition'] * 0.3 +
-                methods_scores['deepface'] * 0.4 +
-                methods_scores['aws_rekognition'] * 0.3
-            )
-            
+            # Aggregate available scores
+            available_scores = [s for s in methods_scores.values() if s is not None]
+            threshold = getattr(settings, 'FACE_MATCHING_THRESHOLD', 0.75)
+            if not available_scores:
+                return {
+                    'score': 0,
+                    'is_match': False,
+                    'error': 'No face comparison methods available',
+                    'methods_scores': methods_scores,
+                    'degraded': True
+                }
+            final_score_weighted = float(np.mean(available_scores))
             final_is_match = final_score_weighted >= threshold
             
             return {
@@ -309,10 +303,9 @@ class KYCService:
                 'methods_scores': methods_scores,
                 'confidence': 'high' if final_is_match and final_score_weighted > 0.85 else 'medium',
                 'details': {
-                    'face_distance': float(face_distance),
-                    'deepface_verified': deepface_result.get('verified', False),
                     'rekognition_matches': len(rekognition_matches)
-                }
+                },
+                'degraded': not FACE_RECOGNITION_AVAILABLE or not DEEPFACE_AVAILABLE
             }
             
         except Exception as e:
@@ -327,6 +320,13 @@ class KYCService:
     async def check_liveness(self, selfie_url: str) -> Dict[str, Any]:
         """Check if selfie is live (not a photo of a photo)"""
         try:
+            if not CV2_AVAILABLE:
+                return {
+                    'is_live': False,
+                    'confidence': 'unknown',
+                    'error': 'OpenCV is not available in this deployment',
+                    'degraded': True
+                }
             # Download image
             response = requests.get(selfie_url)
             image_bytes = io.BytesIO(response.content)
