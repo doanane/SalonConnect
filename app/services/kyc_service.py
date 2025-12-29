@@ -1,236 +1,512 @@
 import boto3
-import re
 import requests
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status, UploadFile
-from datetime import datetime, timedelta
-
-from app.models.vendor import VendorKYC, KYCStatus
-from app.models.user import User
-from app.schemas.kyc import KYCSubmission, ExtractedIDData
-from app.core.cloudinary import upload_image
+import io
+import base64
+from PIL import Image
+from typing import Dict, Any, Optional, Tuple
+from datetime import datetime
+import hashlib
+import json
 from app.core.config import settings
-from app.services.email import EmailService
+import logging
+import re
+
+# Optional dependencies for advanced KYC features
+try:
+    import cv2
+    import numpy as np
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    np = None
+    cv2 = None
+
+try:
+    import face_recognition
+    FACE_RECOGNITION_AVAILABLE = True
+except ImportError:
+    FACE_RECOGNITION_AVAILABLE = False
+    face_recognition = None
+
+try:
+    from deepface import DeepFace
+    DEEPFACE_AVAILABLE = True
+except ImportError:
+    DEEPFACE_AVAILABLE = False
+    DeepFace = None
+
+logger = logging.getLogger(__name__)
 
 class KYCService:
-    # Initialize AWS Rekognition Client
-    _rekognition_client = None
-
-    @classmethod
-    def get_aws_client(cls):
-        """Singleton pattern to get AWS client"""
-        if not cls._rekognition_client:
-            cls._rekognition_client = boto3.client(
-                'rekognition',
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                region_name=settings.AWS_REGION
-            )
-        return cls._rekognition_client
-
-    @staticmethod
-    def _get_image_bytes(image_url: str):
-        """Helper: Download image from Cloudinary to send bytes to AWS"""
+    def __init__(self):
+        self.s3_client = boto3.client(
+            's3',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION
+        )
+        self.rekognition_client = boto3.client(
+            'rekognition',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_REGION
+        )
+        self.ocr_api_key = getattr(settings, 'OCR_API_KEY', 'helloworld')
+        
+    async def upload_document_to_s3(self, file, user_id: int, doc_type: str) -> str:
+        """Upload document to S3 with proper organization"""
         try:
+            # Generate unique filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_hash = hashlib.md5(file.read()).hexdigest()[:8]
+            file.seek(0)  # Reset file pointer
+            
+            filename = f"kyc/{user_id}/{doc_type}_{timestamp}_{file_hash}.jpg"
+            
+            # Upload to S3
+            self.s3_client.upload_fileobj(
+                file,
+                'salon-connect-kyc',  # Create this bucket in AWS S3
+                filename,
+                ExtraArgs={
+                    'ContentType': 'image/jpeg',
+                    'ACL': 'private'  # Or 'public-read' if you want public URLs
+                }
+            )
+            
+            # Generate pre-signed URL (valid for 7 days)
+            url = self.s3_client.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': 'salon-connect-kyc',
+                    'Key': filename
+                },
+                ExpiresIn=604800  # 7 days
+            )
+            
+            logger.info(f"Document uploaded to S3: {filename}")
+            return url
+            
+        except Exception as e:
+            logger.error(f"Error uploading to S3: {str(e)}")
+            raise
+    
+    async def extract_document_data(self, image_url: str) -> Dict[str, Any]:
+        """Extract text from ID document using OCR"""
+        try:
+            # Download image
             response = requests.get(image_url)
-            response.raise_for_status()
-            return response.content
-        except Exception as e:
-            print(f"[KYC] Failed to download image for analysis: {e}")
-            raise HTTPException(status_code=400, detail="Could not process uploaded image. Please try again.")
-
-    @staticmethod
-    def upload_kyc_document(file: UploadFile, folder: str = "kyc_docs"):
-        """Uploads document to Cloudinary"""
-        try:
-            result = upload_image(file.file, folder=f"salon_connect/{folder}")
-            return result.get('secure_url')
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
-
-    @staticmethod
-    def extract_data_from_id(front_image_url: str) -> ExtractedIDData:
-        """
-        REAL WORLD OCR: Uses AWS Rekognition to read the ID Card.
-        specifically looks for Ghana Card patterns.
-        """
-        print(f" [KYC-AWS] Analyzing ID text: {front_image_url}")
-        client = KYCService.get_aws_client()
-        image_bytes = KYCService._get_image_bytes(front_image_url)
-
-        try:
-            response = client.detect_text(Image={'Bytes': image_bytes})
-            detected_text = [item['DetectedText'] for item in response['TextDetections']]
-            full_text_blob = " ".join(detected_text)
+            image_bytes = io.BytesIO(response.content)
             
-            print(f" [KYC-AWS] Raw Text Detected: {detected_text}")
-
-            # --- PARSING LOGIC FOR GHANA CARD / ID ---
-            extracted = ExtractedIDData()
-            extracted.raw_text = full_text_blob # For debugging
-            extracted.document_type = "Unknown ID"
-
-            # 1. Detect ID Number (Ghana Card Format: GHA-123456789-0)
-            # Regex looks for: GHA, followed by numbers/dashes
-            gha_pattern = re.search(r'(GHA-\d{9}-\d)', full_text_blob)
-            if gha_pattern:
-                extracted.id_number = gha_pattern.group(0)
-                extracted.document_type = "Ghana Card"
-            else:
-                # Fallback: Look for Voter ID (typical 10 digits) or Passport
-                voter_pattern = re.search(r'\b\d{10}\b', full_text_blob)
-                if voter_pattern:
-                    extracted.id_number = voter_pattern.group(0)
-                    extracted.document_type = "Voter ID / Other"
-
-            # 2. Detect Date of Birth (dd/mm/yyyy or yyyy-mm-dd)
-            # This regex looks for dates near keywords like "DOB" or just standard date formats
-            date_pattern = re.search(r'\d{2}[-/]\d{2}[-/]\d{4}', full_text_blob)
-            if date_pattern:
-                extracted.date_of_birth = date_pattern.group(0)
-
-            # 3. Detect Name (Simplistic heuristic: Looks for all-caps words that are likely names)
-            # In production, you might look for lines strictly below "Name" or "Surname" labels
-            # For now, we leave name empty to force user verification unless we find a strong match
+            # Convert to base64 for OCR API
+            encoded_string = base64.b64encode(image_bytes.getvalue()).decode()
             
-            # Identify 'Republic of Ghana' to confirm validity
-            if "REPUBLIC OF GHANA" in full_text_blob.upper() or "ECOWAS" in full_text_blob.upper():
-                if not extracted.document_type:
-                    extracted.document_type = "Ghana National ID"
-
-            return extracted
-
-        except Exception as e:
-            print(f" [KYC-AWS] OCR Error: {e}")
-            # Do not block the user; return empty data so they can fill it manually
-            return ExtractedIDData(raw_text="OCR Failed")
-
-    @staticmethod
-    def perform_liveness_check(id_front_url: str, selfie_url: str):
-        """
-        REAL WORLD BIOMETRICS: Uses AWS Rekognition CompareFaces.
-        Verifies that the face in the ID matches the Selfie.
-        """
-        print(f" [KYC-AWS] Comparing Faces...")
-        client = KYCService.get_aws_client()
-        
-        id_bytes = KYCService._get_image_bytes(id_front_url)
-        selfie_bytes = KYCService._get_image_bytes(selfie_url)
-
-        try:
-            # 1. Compare Faces
-            response = client.compare_faces(
-                SourceImage={'Bytes': id_bytes},
-                TargetImage={'Bytes': selfie_bytes},
-                SimilarityThreshold=85 # 85% confidence required
-            )
-
-            matches = response.get('FaceMatches', [])
+            # Call OCR.space API
+            payload = {
+                'apikey': self.ocr_api_key,
+                'base64Image': f'data:image/jpeg;base64,{encoded_string}',
+                'language': 'eng',
+                'isOverlayRequired': False,
+                'scale': True,
+                'OCREngine': 2  # Engine 2 is more accurate
+            }
             
-            if not matches:
-                print(" [KYC-AWS] No face match found.")
-                return False
-
-            # Get the best match
-            best_match = matches[0]
-            similarity = best_match['Similarity']
-            print(f" [KYC-AWS] Match Confidence: {similarity}%")
-
-            # 2. Basic Liveness/Quality Check on Selfie
-            # We check the selfie to ensure it's not a blurry blob or eyes closed
-            # (Note: For true "active liveness" (blink detection), frontend integration is needed)
-            face_details = client.detect_faces(
-                Image={'Bytes': selfie_bytes},
-                Attributes=['ALL']
+            result = requests.post(
+                'https://api.ocr.space/parse/image',
+                data=payload,
+                timeout=30
             )
             
-            if not face_details['FaceDetails']:
-                print(" [KYC-AWS] No face detected in selfie.")
-                return False
-                
-            face = face_details['FaceDetails'][0]
+            ocr_result = result.json()
             
-            # Check basic quality
-            if face['Quality']['Brightness'] < 40 or face['Quality']['Sharpness'] < 40:
-                print(" [KYC-AWS] Selfie quality too low.")
-                # We return False or could throw a specific error
-                # For strict mode: return False
-                # For lenient mode: pass it
+            if ocr_result.get('IsErroredOnProcessing'):
+                logger.warning(f"OCR Error: {ocr_result.get('ErrorMessage')}")
+                return {}
             
-            return True
-
-        except client.exceptions.InvalidParameterException:
-            print(" [KYC-AWS] No face detected in one of the images.")
-            return False
+            # Parse extracted text
+            parsed_text = ocr_result.get('ParsedResults', [{}])[0].get('ParsedText', '')
+            
+            # Extract specific fields (this is simplified - you'd want more sophisticated parsing)
+            extracted_data = {
+                'raw_text': parsed_text,
+                'id_number': self._extract_id_number(parsed_text),
+                'full_name': self._extract_name(parsed_text),
+                'date_of_birth': self._extract_date(parsed_text),
+                'confidence': ocr_result.get('ParsedResults', [{}])[0].get('FileParseExitCode', 0)
+            }
+            
+            logger.info(f"OCR extracted data: {extracted_data}")
+            return extracted_data
+            
         except Exception as e:
-            print(f" [KYC-AWS] Biometric Error: {e}")
-            return False
-
-    @staticmethod
-    def submit_kyc(db: Session, vendor_id: int, data: KYCSubmission):
-        """
-        Final Submission Logic
-        """
-        # 1. Duplicate ID Check (CRITICAL: Prevents 30-day trial abuse)
-        # Check if this ID number exists in APPROVED records
-        existing_kyc = db.query(VendorKYC).filter(
-            VendorKYC.id_number == data.id_number,
-            VendorKYC.status == KYCStatus.APPROVED
-        ).first()
+            logger.error(f"OCR extraction failed: {str(e)}")
+            return {}
+    
+    def _extract_id_number(self, text: str) -> Optional[str]:
+        """Extract ID number from text"""
+        # Look for Ghana Card format: GHA-XXXXXXXXX-X
+        import re
+        patterns = [
+            r'GHA-\d{9}-\d',  # Ghana Card
+            r'\d{6}[A-Z]\d{2}[A-Z]',  # Passport-like
+            r'[A-Z]\d{6,8}',  # License formats
+        ]
         
-        # If it exists AND belongs to a different user -> REJECT
-        if existing_kyc and existing_kyc.vendor_id != vendor_id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, 
-                detail="IDENTITY FRAUD DETECTED: This ID card is already linked to another registered account. Contact support."
-            )
-
-        # 2. Perform Real Face Verification
-        # We re-verify on submission to ensure URLs weren't swapped
-        is_match = KYCService.perform_liveness_check(data.id_front_url, data.selfie_url)
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if match:
+                return match.group(0)
+        return None
+    
+    def _extract_name(self, text: str) -> Optional[str]:
+        """Extract name from text using basic NLP"""
+        # This is simplified - in production, use proper NLP libraries
+        lines = text.split('\n')
+        for line in lines[:5]:  # Check first 5 lines
+            line = line.strip()
+            if (len(line.split()) >= 2 and  # At least 2 words
+                any(word.istitle() for word in line.split()) and  # Has title case
+                len(line) < 50):  # Not too long
+                return line
+        return None
+    
+    def _extract_date(self, text: str) -> Optional[str]:
+        """Extract date from text"""
+        import re
+        date_patterns = [
+            r'\d{2}/\d{2}/\d{4}',
+            r'\d{2}-\d{2}-\d{4}',
+            r'\d{4}-\d{2}-\d{2}',
+            r'\d{2} \w+ \d{4}',
+        ]
         
-        if not is_match:
-             raise HTTPException(
-                 status_code=status.HTTP_400_BAD_REQUEST, 
-                 detail="Biometric Verification Failed. The person in the selfie does not match the ID card provided."
-             )
-
-        # 3. Save Data
-        user_kyc = db.query(VendorKYC).filter(VendorKYC.vendor_id == vendor_id).first()
-        if not user_kyc:
-            user_kyc = VendorKYC(vendor_id=vendor_id)
-            db.add(user_kyc)
-        
-        user_kyc.id_type = data.id_type
-        user_kyc.id_number = data.id_number
-        user_kyc.extracted_name = data.full_name
-        user_kyc.extracted_dob = data.date_of_birth
-        user_kyc.id_card_front_url = data.id_front_url
-        user_kyc.id_card_back_url = data.id_back_url
-        user_kyc.selfie_url = data.selfie_url
-        user_kyc.status = KYCStatus.APPROVED # Auto-approve since AWS verified it
-        user_kyc.verified_at = datetime.utcnow()
-        
-        # 4. Activate 30-Day Free Trial
-        user = db.query(User).filter(User.id == vendor_id).first()
-        user.kyc_verified = True
-        user.subscription_plan = "premium_trial"
-        
-        # Set expiry (30 Days)
-        expiry_date = datetime.utcnow() + timedelta(days=30)
-        user.subscription_expires_at = expiry_date
-        
-        db.commit()
-        db.refresh(user_kyc)
-        
-        # 5. Send Email
+        for pattern in date_patterns:
+            match = re.search(pattern, text)
+            if match:
+                return match.group(0)
+        return None
+    
+    async def verify_document_authenticity(self, front_url: str, back_url: Optional[str] = None) -> Dict[str, Any]:
+        """Verify if document is authentic using AWS Rekognition"""
         try:
-            EmailService.send_trial_started_email(user, expiry_date)
+            # Download images
+            front_response = requests.get(front_url)
+            back_response = requests.get(back_url) if back_url else None
+            
+            # Use AWS Rekognition for document analysis
+            front_bytes = front_response.content
+            back_bytes = back_response.content if back_response else None
+            
+            # Analyze document with Rekognition
+            front_analysis = self.rekognition_client.detect_text(
+                Image={'Bytes': front_bytes}
+            )
+            
+            # Check for security features
+            security_checks = {
+                'has_text': len(front_analysis.get('TextDetections', [])) > 0,
+                'has_printed_text': any(
+                    detection.get('Type') == 'LINE' 
+                    for detection in front_analysis.get('TextDetections', [])
+                ),
+                'text_confidence': np.mean([
+                    detection.get('Confidence', 0) 
+                    for detection in front_analysis.get('TextDetections', []) 
+                    if detection.get('Type') == 'LINE'
+                ]) if front_analysis.get('TextDetections') else 0
+            }
+            
+            # Additional checks for specific ID types
+            is_valid = (
+                security_checks['has_text'] and 
+                security_checks['has_printed_text'] and
+                security_checks['text_confidence'] > 80
+            )
+            
+            return {
+                'is_valid': is_valid,
+                'security_checks': security_checks,
+                'text_detections': len(front_analysis.get('TextDetections', [])),
+                'confidence': security_checks['text_confidence']
+            }
+            
         except Exception as e:
-            print(f"Failed to send trial email: {e}")
+            logger.error(f"Document verification failed: {str(e)}")
+            return {'is_valid': False, 'error': str(e)}
+    
+    async def compare_faces(self, id_photo_url: str, selfie_url: str) -> Dict[str, Any]:
+        """Compare faces from ID and selfie using multiple methods"""
+        try:
+            # Download images
+            id_response = requests.get(id_photo_url)
+            selfie_response = requests.get(selfie_url)
+            
+            id_image = face_recognition.load_image_file(io.BytesIO(id_response.content))
+            selfie_image = face_recognition.load_image_file(io.BytesIO(selfie_response.content))
+            
+            # Method 1: Face Recognition Library
+            id_encodings = face_recognition.face_encodings(id_image)
+            selfie_encodings = face_recognition.face_encodings(selfie_image)
+            
+            if not id_encodings or not selfie_encodings:
+                return {
+                    'score': 0,
+                    'is_match': False,
+                    'error': 'No faces detected',
+                    'method': 'face_recognition'
+                }
+            
+            # Get face distances
+            face_distance = face_recognition.face_distance([id_encodings[0]], selfie_encodings[0])[0]
+            face_match_score = max(0, 1 - face_distance)  # Convert distance to similarity score
+            
+            # Method 2: DeepFace for more accurate comparison
+            deepface_result = DeepFace.verify(
+                img1_path=id_photo_url,
+                img2_path=selfie_url,
+                model_name='Facenet',
+                distance_metric='cosine',
+                enforce_detection=False
+            )
+            
+            deepface_score = 1 - deepface_result['distance'] if 'distance' in deepface_result else 0
+            
+            # Combine scores (weighted average)
+            final_score = (face_match_score * 0.4 + deepface_score * 0.6)
+            threshold = getattr(settings, 'FACE_MATCHING_THRESHOLD', 0.75)
+            is_match = final_score >= threshold
+            
+            # Additional analysis using AWS Rekognition
+            rekognition_result = self.rekognition_client.compare_faces(
+                SourceImage={'Bytes': id_response.content},
+                TargetImage={'Bytes': selfie_response.content},
+                SimilarityThreshold=70
+            )
+            
+            rekognition_matches = rekognition_result.get('FaceMatches', [])
+            rekognition_score = rekognition_matches[0].get('Similarity', 0) / 100 if rekognition_matches else 0
+            
+            # Final decision with multiple method consensus
+            methods_scores = {
+                'face_recognition': face_match_score,
+                'deepface': deepface_score,
+                'aws_rekognition': rekognition_score
+            }
+            
+            # Weighted final score
+            final_score_weighted = (
+                methods_scores['face_recognition'] * 0.3 +
+                methods_scores['deepface'] * 0.4 +
+                methods_scores['aws_rekognition'] * 0.3
+            )
+            
+            final_is_match = final_score_weighted >= threshold
+            
+            return {
+                'score': round(final_score_weighted, 3),
+                'is_match': final_is_match,
+                'threshold': threshold,
+                'methods_scores': methods_scores,
+                'confidence': 'high' if final_is_match and final_score_weighted > 0.85 else 'medium',
+                'details': {
+                    'face_distance': float(face_distance),
+                    'deepface_verified': deepface_result.get('verified', False),
+                    'rekognition_matches': len(rekognition_matches)
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Face comparison failed: {str(e)}")
+            return {
+                'score': 0,
+                'is_match': False,
+                'error': str(e),
+                'method': 'combined'
+            }
+    
+    async def check_liveness(self, selfie_url: str) -> Dict[str, Any]:
+        """Check if selfie is live (not a photo of a photo)"""
+        try:
+            # Download image
+            response = requests.get(selfie_url)
+            image_bytes = io.BytesIO(response.content)
+            
+            # Convert to OpenCV format
+            image = cv2.imdecode(np.frombuffer(image_bytes.getvalue(), np.uint8), cv2.IMREAD_COLOR)
+            
+            # Basic liveness checks
+            # 1. Check for multiple faces (should be exactly 1)
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+            
+            # 2. Check image quality (blur detection)
+            blur_value = cv2.Laplacian(image, cv2.CV_64F).var()
+            
+            # 3. Check for screen reflection/glare (simplified)
+            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            brightness = np.mean(hsv[:,:,2])
+            
+            liveness_checks = {
+                'single_face': len(faces) == 1,
+                'image_quality': blur_value > 100,  # Higher is less blurry
+                'brightness_ok': 50 < brightness < 200,
+                'face_size_ok': len(faces) > 0 and faces[0][2] > 100,  # Face width > 100px
+            }
+            
+            is_live = all(liveness_checks.values())
+            
+            return {
+                'is_live': is_live,
+                'confidence': 'high' if is_live else 'low',
+                'checks': liveness_checks,
+                'details': {
+                    'faces_detected': len(faces),
+                    'blur_score': blur_value,
+                    'brightness': brightness
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Liveness check failed: {str(e)}")
+            return {
+                'is_live': False,
+                'confidence': 'unknown',
+                'error': str(e)
+            }
+    
+    async def perform_full_kyc_analysis(self, kyc_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform complete KYC analysis"""
+        try:
+            # 1. Document authenticity
+            doc_verification = await self.verify_document_authenticity(
+                kyc_data['id_front_url'],
+                kyc_data.get('id_back_url')
+            )
+            
+            # 2. Face matching
+            face_comparison = await self.compare_faces(
+                kyc_data['id_front_url'],
+                kyc_data['selfie_url']
+            )
+            
+            # 3. Liveness check
+            liveness_check = await self.check_liveness(kyc_data['selfie_url'])
+            
+            # 4. Risk assessment
+            risk_score = self.calculate_risk_score(
+                doc_verification,
+                face_comparison,
+                liveness_check,
+                kyc_data
+            )
+            
+            # 5. Final decision
+            is_approved = (
+                doc_verification.get('is_valid', False) and
+                face_comparison.get('is_match', False) and
+                liveness_check.get('is_live', False) and
+                risk_score <= 0.5  # Low risk
+            )
+            
+            return {
+                'document_verification': doc_verification,
+                'face_comparison': face_comparison,
+                'liveness_check': liveness_check,
+                'risk_score': risk_score,
+                'is_approved': is_approved,
+                'overall_confidence': self.calculate_confidence(
+                    doc_verification,
+                    face_comparison,
+                    liveness_check
+                ),
+                'recommendations': self.generate_recommendations(
+                    doc_verification,
+                    face_comparison,
+                    liveness_check,
+                    is_approved
+                )
+            }
+            
+        except Exception as e:
+            logger.error(f"Full KYC analysis failed: {str(e)}")
+            return {
+                'error': str(e),
+                'is_approved': False,
+                'risk_score': 1.0  # High risk due to error
+            }
+    
+    def calculate_risk_score(self, doc_verification: Dict, face_comparison: Dict, 
+                           liveness_check: Dict, kyc_data: Dict) -> float:
+        """Calculate risk score (0-1)"""
+        risk_factors = []
         
-        return user_kyc
-
-    @staticmethod
-    def get_kyc_status(db: Session, vendor_id: int):
-        return db.query(VendorKYC).filter(VendorKYC.vendor_id == vendor_id).first()
+        # Document risk
+        if not doc_verification.get('is_valid'):
+            risk_factors.append(0.5)
+        elif doc_verification.get('confidence', 0) < 70:
+            risk_factors.append(0.3)
+        
+        # Face match risk
+        if not face_comparison.get('is_match'):
+            risk_factors.append(0.6)
+        elif face_comparison.get('score', 0) < 0.8:
+            risk_factors.append(0.2)
+        
+        # Liveness risk
+        if not liveness_check.get('is_live'):
+            risk_factors.append(0.7)
+        
+        # ID number pattern risk (simplified)
+        id_number = kyc_data.get('id_number', '')
+        if not id_number or len(id_number) < 6:
+            risk_factors.append(0.4)
+        
+        # Calculate final risk (average of factors, or 0 if no factors)
+        return np.mean(risk_factors) if risk_factors else 0.1
+    
+    def calculate_confidence(self, doc_verification: Dict, face_comparison: Dict, 
+                           liveness_check: Dict) -> str:
+        """Calculate overall confidence level"""
+        scores = []
+        
+        if doc_verification.get('is_valid'):
+            scores.append(doc_verification.get('confidence', 0) / 100)
+        
+        scores.append(face_comparison.get('score', 0))
+        
+        if liveness_check.get('is_live'):
+            scores.append(0.9)  # High confidence for live selfie
+        else:
+            scores.append(0.3)  # Low confidence
+        
+        avg_score = np.mean(scores) if scores else 0
+        
+        if avg_score > 0.8:
+            return 'high'
+        elif avg_score > 0.6:
+            return 'medium'
+        else:
+            return 'low'
+    
+    def generate_recommendations(self, doc_verification: Dict, face_comparison: Dict,
+                               liveness_check: Dict, is_approved: bool) -> str:
+        """Generate recommendations based on analysis"""
+        recommendations = []
+        
+        if not doc_verification.get('is_valid'):
+            recommendations.append("Document appears invalid. Please upload a clear photo of a valid government ID.")
+        
+        if not face_comparison.get('is_match'):
+            recommendations.append("Face doesn't match ID photo. Please ensure you're using your own ID.")
+        
+        if not liveness_check.get('is_live'):
+            recommendations.append("Selfie doesn't appear to be live. Please take a fresh selfie without glasses or masks.")
+        
+        if face_comparison.get('score', 0) < 0.7:
+            recommendations.append("Low face match confidence. Try taking photos in better lighting.")
+        
+        if not recommendations and is_approved:
+            return "All checks passed. Ready for approval."
+        
+        return "; ".join(recommendations)
