@@ -8,7 +8,7 @@ from app.schemas.user import CustomerRegister, VendorRegister
 
 import os
 from app.models.user import User, UserProfile, UserRole, PendingUser, UserOTP
-from app.schemas.user import UserCreate, UserResponse, UserLogin, Token, UserProfileUpdate, OTPLoginRequest, OTPVerifyRequest,GoogleOAuthRegister
+from app.schemas.user import UserCreate, UserResponse, UserLogin, Token, UserProfileUpdate, OTPLoginRequest, OTPVerifyRequest, GoogleOAuthRegister
 from app.core.security import get_password_hash, verify_password, create_access_token, verify_token
 from app.services.email import EmailService
 
@@ -22,14 +22,13 @@ class AuthService:
         
         existing_pending = db.query(PendingUser).filter(PendingUser.email == user_data.email).first()
         if existing_pending:
-            # Resend verification email
+            # Resend verification email - USING NEW SIGNATURE
             verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={existing_pending.verification_token}"
-            temp_user = User(
+            email_sent = EmailService.send_verification_email(
                 email=existing_pending.email,
                 first_name=existing_pending.first_name,
-                last_name=existing_pending.last_name
+                verification_url=verification_url
             )
-            EmailService.send_verification_email(temp_user, verification_url)
             raise HTTPException(status_code=400, detail="Verification email already sent. Please check your email.")
         
         # Check phone number only if provided
@@ -57,14 +56,13 @@ class AuthService:
         db.commit()
         db.refresh(pending_user)
         
-        # Send verification email
-        temp_user = User(
+        # Send verification email - USING NEW SIGNATURE
+        verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={verification_token}"
+        email_sent = EmailService.send_verification_email(
             email=user_data.email,
             first_name=user_data.first_name,
-            last_name=user_data.last_name
+            verification_url=verification_url
         )
-        verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={verification_token}"
-        EmailService.send_verification_email(temp_user, verification_url)
         
         return {"message": "Registration successful! Please check your email for verification link."}
 
@@ -151,8 +149,12 @@ class AuthService:
         db.add(user_otp)
         db.commit()
         
-        # Send OTP email
-        EmailService.send_otp_email(user, otp)
+        # Send OTP email - USING NEW SIGNATURE
+        email_sent = EmailService.send_otp_email(
+            email=user.email,
+            first_name=user.first_name,
+            otp=otp
+        )
         
         return {"message": "OTP sent to your email"}
 
@@ -318,128 +320,10 @@ class AuthService:
         }
 
     @staticmethod
-    async def register_google_user(db: Session, user_data: UserCreate, google_user: dict):
-        try:
-            existing_user = db.query(User).filter(User.email == user_data.email).first()
-            
-            if existing_user:
-                existing_user.first_name = user_data.first_name
-                existing_user.last_name = user_data.last_name
-                existing_user.is_verified = True
-                db.commit()
-                db.refresh(existing_user)
-                return existing_user
-            
-            hashed_password = get_password_hash(user_data.password)
-            user = User(
-                email=user_data.email,
-                password=hashed_password,
-                first_name=user_data.first_name,
-                last_name=user_data.last_name,
-                role=user_data.role,
-                is_verified=True,
-                is_active=True
-            )
-            
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            
-            profile = UserProfile(user_id=user.id)
-            db.add(profile)
-            db.commit()
-            
-            return user
-            
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
-
-
-    
-    @staticmethod
-    async def register_google_user(db: Session, google_user: dict, role: UserRole = UserRole.CUSTOMER):
-        try:
-            existing_user = db.query(User).filter(User.email == google_user['email']).first()
-            
-            if existing_user:
-                if not existing_user.is_verified:
-                    existing_user.is_verified = True
-                
-                if existing_user.first_name != google_user['first_name'] or existing_user.last_name != google_user['last_name']:
-                    existing_user.first_name = google_user['first_name']
-                    existing_user.last_name = google_user['last_name']
-                    existing_user.updated_at = datetime.utcnow()
-                
-                db.commit()
-                db.refresh(existing_user)
-                return existing_user
-            
-            auto_password = f"google_oauth_{secrets.token_urlsafe(12)}"
-            hashed_password = get_password_hash(auto_password)
-            
-            user_role = UserRole.CUSTOMER
-            if google_user['email'] in settings.ADMIN_EMAILS:
-                user_role = UserRole.ADMIN
-            elif role:
-                user_role = role
-            
-            user = User(
-                email=google_user['email'],
-                password=hashed_password,
-                first_name=google_user['first_name'],
-                last_name=google_user['last_name'],
-                role=user_role,
-                is_verified=True,
-                is_active=True
-            )
-            
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            
-            profile = UserProfile(user_id=user.id)
-            db.add(profile)
-            db.commit()
-            
-            print(f"Created new user via Google OAuth: {user.email} with role: {user.role}")
-            return user
-            
-        except Exception as e:
-            db.rollback()
-            print(f"Error creating Google OAuth user: {e}")
-            raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
-    
-    @staticmethod
-    def get_user_role_permissions(role: UserRole):
-        permissions = {
-            UserRole.CUSTOMER: [
-                "view_salons", "book_appointments", "manage_own_bookings", 
-                "view_own_profile", "update_own_profile", "favorite_salons"
-            ],
-            UserRole.VENDOR: [
-                "manage_salons", "manage_bookings", "view_reports", 
-                "update_business_info", "manage_services", "view_analytics"
-            ],
-            UserRole.ADMIN: [
-                "manage_users", "manage_all_salons", "view_all_reports",
-                "system_configuration", "content_moderation", "all_permissions"
-            ]
-        }
-        return permissions.get(role, [])
-    
-    @staticmethod
-    def can_user_access(user: User, permission: str):
-        user_permissions = AuthService.get_user_role_permissions(user.role)
-        return permission in user_permissions
-
-
-
-    @staticmethod
     def register_customer(db: Session, customer_data: CustomerRegister):
         """Register a new customer"""
         try:
-            print(f" [AUTH] Customer registration attempt for: {customer_data.email}")
+            print(f"🔐 [AUTH] Customer registration attempt for: {customer_data.email}")
             
             # Check if email already exists
             existing_user = db.query(User).filter(User.email == customer_data.email).first()
@@ -448,14 +332,13 @@ class AuthService:
             
             existing_pending = db.query(PendingUser).filter(PendingUser.email == customer_data.email).first()
             if existing_pending:
-                # Resend verification email
+                # Resend verification email - USING NEW SIGNATURE
                 verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={existing_pending.verification_token}"
-                temp_user = User(
+                email_sent = EmailService.send_verification_email(
                     email=existing_pending.email,
                     first_name=existing_pending.first_name,
-                    last_name=existing_pending.last_name
+                    verification_url=verification_url
                 )
-                EmailService.send_verification_email(temp_user, verification_url)
                 raise HTTPException(status_code=400, detail="Verification email already sent. Please check your email.")
             
             # Check phone number
@@ -483,14 +366,13 @@ class AuthService:
             db.commit()
             db.refresh(pending_user)
             
-            # Send verification email
-            temp_user = User(
+            # Send verification email - USING NEW SIGNATURE
+            verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={verification_token}"
+            email_sent = EmailService.send_verification_email(
                 email=customer_data.email,
                 first_name=customer_data.first_name,
-                last_name=customer_data.last_name
+                verification_url=verification_url
             )
-            verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={verification_token}"
-            email_sent = EmailService.send_verification_email(temp_user, verification_url)
             
             return {
                 "message": "Customer registration successful! Please check your email for verification link.",
@@ -505,7 +387,7 @@ class AuthService:
         except HTTPException:
             raise
         except Exception as e:
-            print(f"[AUTH] Customer registration error: {str(e)}")
+            print(f"❌ [AUTH] Customer registration error: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Customer registration failed. Please try again."
@@ -515,7 +397,7 @@ class AuthService:
     def register_vendor(db: Session, vendor_data: VendorRegister):
         """Register a new vendor with business info"""
         try:
-            print(f" [AUTH] Vendor registration attempt for: {vendor_data.email}")
+            print(f"🔐 [AUTH] Vendor registration attempt for: {vendor_data.email}")
             
             # Check if email already exists
             existing_user = db.query(User).filter(User.email == vendor_data.email).first()
@@ -524,14 +406,13 @@ class AuthService:
             
             existing_pending = db.query(PendingUser).filter(PendingUser.email == vendor_data.email).first()
             if existing_pending:
-                # Resend verification email
+                # Resend verification email - USING NEW SIGNATURE
                 verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={existing_pending.verification_token}"
-                temp_user = User(
+                email_sent = EmailService.send_verification_email(
                     email=existing_pending.email,
                     first_name=existing_pending.first_name,
-                    last_name=existing_pending.last_name
+                    verification_url=verification_url
                 )
-                EmailService.send_verification_email(temp_user, verification_url)
                 raise HTTPException(status_code=400, detail="Verification email already sent. Please check your email.")
             
             # Check phone numbers
@@ -563,15 +444,14 @@ class AuthService:
             db.commit()
             db.refresh(pending_user)
             
-            # Send vendor-specific verification email
-            temp_user = User(
+            # Send vendor-specific verification email - USING NEW SIGNATURE
+            verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={verification_token}"
+            email_sent = EmailService.send_vendor_welcome_email(
                 email=vendor_data.email,
                 first_name=vendor_data.first_name,
-                last_name=vendor_data.last_name,
-                role=UserRole.VENDOR
+                business_name=vendor_data.business_name,
+                verification_url=verification_url
             )
-            verification_url = f"https://salonconnect-qzne.onrender.com/api/users/verify-email?token={verification_token}"
-            email_sent = EmailService.send_vendor_verification_email(temp_user, verification_url, vendor_data)
             
             # Store business info
             from app.models.vendor import VendorBusinessInfo
@@ -583,8 +463,6 @@ class AuthService:
                 business_city=vendor_data.business_city,
                 business_state=vendor_data.business_state,
                 business_country=vendor_data.business_country,
-                # DO NOT include updated_at here - it will be set automatically on update
-                # DO NOT include created_at either - it's set by server_default=func.now()
             )
             db.add(business_info)
             db.commit()
@@ -603,7 +481,7 @@ class AuthService:
         except HTTPException:
             raise
         except Exception as e:
-            print(f"[AUTH] Vendor registration error: {str(e)}")
+            print(f"❌ [AUTH] Vendor registration error: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Vendor registration failed. Please try again."
@@ -673,12 +551,12 @@ class AuthService:
             db.add(profile)
             db.commit()
             
-            print(f"Created new user via Google OAuth: {user.email} with role: {user.role}")
+            print(f"✅ Created new user via Google OAuth: {user.email} with role: {user.role}")
             return user, True  # True means new user
             
         except Exception as e:
             db.rollback()
-            print(f"Error creating Google OAuth user: {e}")
+            print(f"❌ Error creating Google OAuth user: {e}")
             raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
     
     @staticmethod
@@ -728,16 +606,19 @@ class AuthService:
                 </html>
                 """
                 
-                # Send welcome email
-                EmailService.send_email(
+                # Send welcome email using the generic send_email method
+                email_sent = EmailService.send_email(
                     to_email=user.email,
                     subject=subject,
                     html_content=html_content
                 )
-                print(f"Welcome email sent to: {user.email}")
+                if email_sent:
+                    print(f"✅ Welcome email sent to: {user.email}")
+                else:
+                    print(f"❌ Failed to send welcome email to: {user.email}")
             
         except Exception as e:
-            print(f"Failed to send welcome notification: {e}")
+            print(f"❌ Failed to send welcome notification: {e}")
     
     @staticmethod
     def get_user_role_permissions(role: UserRole):
@@ -764,3 +645,4 @@ class AuthService:
     def can_user_access(user: User, permission: str):
         user_permissions = AuthService.get_user_role_permissions(user.role)
         return permission in user_permissions
+
