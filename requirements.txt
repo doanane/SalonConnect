@@ -132,3 +132,9 @@ vine
 wcwidth
 Werkzeug
 wheel
+numpy
+opencv-python
+face-recognition
+deepface
+tensorflow
+tf-keras

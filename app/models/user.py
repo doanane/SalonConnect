@@ -52,8 +52,14 @@ class User(Base):
     otps = relationship("UserOTP", back_populates="user")
     password_resets = relationship("PasswordReset", back_populates="user")
     
-    # Add relationship to KYC data
-    kyc_data = relationship("VendorKYC", back_populates="vendor", uselist=False)
+    # Add relationship to KYC data (disambiguate FK vs reviewer FK)
+    kyc_data = relationship(
+        "VendorKYC",
+        back_populates="vendor",
+        uselist=False,
+        foreign_keys="VendorKYC.vendor_id",
+        primaryjoin="User.id==VendorKYC.vendor_id",
+    )
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"

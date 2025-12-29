@@ -33,30 +33,4 @@ class VendorBusinessInfo(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-class VendorKYC(Base):
-    """Store vendor Identity Verification Data"""
-    __tablename__ = "vendor_kyc"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    vendor_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
-    
-    # Document Images
-    id_card_front_url = Column(String(500), nullable=False)
-    id_card_back_url = Column(String(500), nullable=False)
-    selfie_url = Column(String(500), nullable=False)
-    
-    # Extracted Data (For Automatic Form Filling & Uniqueness Check)
-    id_type = Column(Enum(IDType), default=IDType.GHANA_CARD)
-    id_number = Column(String(100), unique=True, index=True, nullable=False) # UNIQUE constraint prevents duplicate accounts
-    extracted_name = Column(String(255))
-    extracted_dob = Column(String(50))
-    
-    # Verification Status
-    status = Column(Enum(KYCStatus), default=KYCStatus.PENDING)
-    rejection_reason = Column(Text, nullable=True)
-    
-    verified_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    vendor = relationship("User", back_populates="kyc_data")
+# NOTE: VendorKYC is defined in app.models.kyc and exported via models.__init__
