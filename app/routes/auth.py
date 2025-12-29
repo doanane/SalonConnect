@@ -1,33 +1,40 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.services.auth import AuthService  
-from app.schemas.user import CustomerRegister, VendorRegister
-from app.models.vendor import VendorBusinessInfo
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 import os
 import jwt
-from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from app.services.google_oauth import GoogleOAuthService
-from app.database import get_db
-from app.schemas.user import UserCreate, UserResponse, Token, UserLogin, ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest, OTPLoginRequest, OTPVerifyRequest
+
+from app.services.auth import AuthService
+from app.schemas.user import (
+    CustomerRegister, VendorRegister, UserCreate, UserResponse, 
+    Token, UserLogin, ForgotPasswordRequest, ResetPasswordRequest, 
+    ChangePasswordRequest, OTPLoginRequest, OTPVerifyRequest
+)
 from app.services.email import EmailService
 from app.core.security import verify_token, get_password_hash, create_access_token, verify_password
-from app.models.user import User, PasswordReset, PendingUser, UserOTP
+from app.database import get_db
 from app.core.config import settings
+from app.models.vendor import VendorBusinessInfo
+from app.models.salon import Salon
+from app.models.user import User, PasswordReset, PendingUser, UserOTP, UserRole  # Added UserRole
+
+# IMPORT UserRole from models
+from app.models.user import User, PasswordReset, PendingUser, UserOTP, UserRole  # Added UserRole
 
 router = APIRouter()
 security = HTTPBearer()
-
 templates = Jinja2Templates(directory="app/templates")
-
 
 BASE_URL = os.getenv("RENDER_EXTERNAL_URL", "https://salonconnect-qzne.onrender.com")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://saloonconnect.vercel.app")
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security), 
+    db: Session = Depends(get_db)
+):
     token = credentials.credentials
     payload = verify_token(token)
     if not payload:
@@ -44,7 +51,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail="User not found"
         )
     return user
-from app.schemas.user import CustomerRegister, VendorRegister
 
 @router.post("/register/customer")
 def register_customer(customer_data: CustomerRegister, db: Session = Depends(get_db)):
@@ -62,33 +68,39 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     try:
         print(f" [AUTH] Registration attempt for: {user_data.email}")
         
-        
+        # Check if user already exists
         existing_user = db.query(User).filter(User.email == user_data.email).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
         
+        # Check if pending user exists
         existing_pending = db.query(PendingUser).filter(PendingUser.email == user_data.email).first()
         if existing_pending:
-        
+            # Resend verification email
             verification_url = f"{BASE_URL}/api/users/verify-email?token={existing_pending.verification_token}"
-            temp_user = User(
-                email=existing_pending.email,
-                first_name=existing_pending.first_name,
-                last_name=existing_pending.last_name
+            email_sent = EmailService.send_verification_email(
+                email=user_data.email,
+                first_name=user_data.first_name,
+                verification_url=verification_url
             )
-            email_sent = EmailService.send_verification_email(temp_user, verification_url)
-            raise HTTPException(status_code=400, detail="Verification email already sent. Please check your email.")
+            raise HTTPException(
+                status_code=400, 
+                detail="Verification email already sent. Please check your email."
+            )
         
-    
+        # Check phone number if provided
         if user_data.phone_number:
             existing_phone = db.query(User).filter(User.phone_number == user_data.phone_number).first()
             if existing_phone:
                 raise HTTPException(status_code=400, detail="Phone number already registered")
 
+        # Hash password
         hashed_password = get_password_hash(user_data.password)
         
-    
+        # Generate verification token
         verification_token = EmailService.generate_verification_token(user_data.email)
+        
+        # Create pending user
         pending_user = PendingUser(
             email=user_data.email,
             phone_number=user_data.phone_number,
@@ -104,14 +116,13 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(pending_user)
         
-    
-        temp_user = User(
+        # Send verification email - USING FIRST NAME INSTEAD OF PHONE
+        verification_url = f"{BASE_URL}/api/users/verify-email?token={verification_token}"
+        email_sent = EmailService.send_verification_email(
             email=user_data.email,
             first_name=user_data.first_name,
-            last_name=user_data.last_name
+            verification_url=verification_url
         )
-        verification_url = f"{BASE_URL}/api/users/verify-email?token={verification_token}"
-        email_sent = EmailService.send_verification_email(temp_user, verification_url)
         
         return {
             "message": "Registration successful! Please check your email for verification link.",
@@ -137,11 +148,12 @@ def verify_email(request: Request, token: str = Query(...), db: Session = Depend
     try:
         print(f" [AUTH] Email verification attempt with token: {token[:50]}...")
         
+        # Verify token
         payload = EmailService.verify_token(token, 'email_verification')
         if not payload:
             raise HTTPException(status_code=400, detail="Invalid or expired verification token")
         
-    
+        # Find pending user
         pending_user = db.query(PendingUser).filter(
             PendingUser.email == payload['email'],
             PendingUser.expires_at > datetime.utcnow()
@@ -150,7 +162,7 @@ def verify_email(request: Request, token: str = Query(...), db: Session = Depend
         if not pending_user:
             raise HTTPException(status_code=404, detail="Verification token not found or expired")
         
-    
+        # Create user
         user = User(
             email=pending_user.email,
             phone_number=pending_user.phone_number,
@@ -165,18 +177,13 @@ def verify_email(request: Request, token: str = Query(...), db: Session = Depend
         db.commit()
         db.refresh(user)
         
-    
-    
-        if user.role == UserRole.VENDOR:
-        
-            from app.models.vendor import VendorBusinessInfo
+        # If vendor, create initial salon
+        if user.role == UserRole.VENDOR:  # Now this will work!
             business_info = db.query(VendorBusinessInfo).filter(
                 VendorBusinessInfo.email == user.email
             ).first()
             
             if business_info:
-            
-                from app.models.salon import Salon
                 initial_salon = Salon(
                     owner_id=user.id,
                     name=business_info.business_name,
@@ -190,13 +197,11 @@ def verify_email(request: Request, token: str = Query(...), db: Session = Depend
                 )
                 db.add(initial_salon)
                 db.commit()
-                
                 print(f"Created initial salon for vendor: {user.email}")
         
-    
+        # Clean up pending user
         db.delete(pending_user)
         db.commit()
-    
         
         print(f" [AUTH] Email verified successfully for: {user.email}")
         return templates.TemplateResponse("email_verified.html", {"request": request})
@@ -233,7 +238,7 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
         
         reset_token = EmailService.generate_reset_token(user.email)
         
-        
+        # Save reset token
         password_reset = PasswordReset(
             user_id=user.id,
             token=reset_token,
@@ -244,8 +249,12 @@ def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db
         
         reset_url = f"{BASE_URL}/api/users/reset-password-page?token={reset_token}"
         
-        
-        email_sent = EmailService.send_password_reset_email(user, reset_url)
+        # Send email - USING FIRST NAME
+        email_sent = EmailService.send_password_reset_email(
+            email=user.email,
+            first_name=user.first_name,
+            reset_url=reset_url
+        )
         print(f"[AUTH] Password reset email sent status: {email_sent}")
         
         return {
@@ -363,13 +372,12 @@ def reset_password(
                 "valid_token": True
             })
         
-        
+        # Update password
         user.password = get_password_hash(new_password)
         password_reset.used = True
         db.commit()
         
         print(f" [AUTH] Password reset successful for user: {user.email}")
-        
         
         return templates.TemplateResponse("password_reset_success.html", {
             "request": request
@@ -396,15 +404,14 @@ def resend_verification(email: str, db: Session = Depends(get_db)):
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already verified")
         
-        temp_user = User(
-            email=pending_user.email,
-            first_name=pending_user.first_name,
-            last_name=pending_user.last_name
-        )
         verification_url = f"{BASE_URL}/api/users/verify-email?token={pending_user.verification_token}"
         
-        
-        email_sent = EmailService.send_verification_email(temp_user, verification_url)
+        # Send email - USING FIRST NAME
+        email_sent = EmailService.send_verification_email(
+            email=pending_user.email,
+            first_name=pending_user.first_name,
+            verification_url=verification_url
+        )
         print(f"[AUTH] Resend verification email sent status: {email_sent}")
         
         return {
@@ -449,7 +456,7 @@ def request_otp_login(request: OTPLoginRequest, db: Session = Depends(get_db)):
     try:
         user = db.query(User).filter(User.email == request.email).first()
         if not user:
-            
+            # For security, don't reveal if user exists
             return {"message": "If the email exists, an OTP has been sent"}
         
         if not user.is_verified:
@@ -458,17 +465,17 @@ def request_otp_login(request: OTPLoginRequest, db: Session = Depends(get_db)):
         if not user.is_active:
             raise HTTPException(status_code=400, detail="Account is deactivated")
         
-        
+        # Generate OTP
         otp = EmailService.generate_otp()
         
-        
+        # Create OTP record
         user_otp = UserOTP(
             user_id=user.id,
             otp=otp,
             expires_at=datetime.utcnow() + timedelta(minutes=10)
         )
         
-        
+        # Mark previous OTPs as used
         db.query(UserOTP).filter(
             UserOTP.user_id == user.id,
             UserOTP.used == False
@@ -477,8 +484,12 @@ def request_otp_login(request: OTPLoginRequest, db: Session = Depends(get_db)):
         db.add(user_otp)
         db.commit()
         
-        
-        email_sent = EmailService.send_otp_email(user, otp)
+        # Send OTP email - USING FIRST NAME
+        email_sent = EmailService.send_otp_email(
+            email=user.email,
+            first_name=user.first_name,
+            otp=otp
+        )
         
         return {
             "message": "OTP sent to your email",
@@ -496,7 +507,7 @@ def verify_otp_login(request: OTPVerifyRequest, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        
+        # Verify OTP
         user_otp = db.query(UserOTP).filter(
             UserOTP.user_id == user.id,
             UserOTP.otp == request.otp,
@@ -507,11 +518,11 @@ def verify_otp_login(request: OTPVerifyRequest, db: Session = Depends(get_db)):
         if not user_otp:
             raise HTTPException(status_code=400, detail="Invalid or expired OTP")
         
-        
+        # Mark OTP as used
         user_otp.used = True
         db.commit()
         
-        
+        # Create tokens
         access_token = create_access_token(data={"user_id": user.id, "email": user.email})
         refresh_token = create_access_token(data={"user_id": user.id}, expires_delta=timedelta(days=7))
         
@@ -578,6 +589,7 @@ def verify_token_endpoint(credentials: HTTPAuthorizationCredentials = Depends(se
 def logout(current_user: dict = Depends(get_current_user)):
     """Logout user (client should remove tokens)"""
     return {"message": "Successfully logged out"}
+
 @router.get("/debug-env")
 def debug_environment():
     """Debug environment variables on Render"""
@@ -618,7 +630,7 @@ def debug_email_config():
     
     print(f" [DEBUG] Email Configuration: {config_info}")
     
-    
+    # Test SMTP connection
     try:
         import smtplib
         print(f" [DEBUG] Testing SMTP connection to {settings.SMTP_HOST}:{settings.SMTP_PORT}")
@@ -632,5 +644,3 @@ def debug_email_config():
         config_info["smtp_test"] = f"FAILED: {str(e)}"
     
     return config_info
-
-
